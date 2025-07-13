@@ -1,61 +1,79 @@
-<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
-<html> <head>
-<meta charset="utf-8"/>
-<title>Testing FYShuffle</title>
-<script src="dist/FYShuffle.js"></script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Testing FYShuffle</title>
+  <script src="dist/FYShuffle.js"></script>
 </head>
 
 <body>
   <p>
-    Here's my email with all parameters set.: <span class="email"
-data-content="GuQ5ZmZasL5JY5nvWWmn" data-cc="cc@example.com,cc2@example.com"
-  data-bcc="bcc@example.com" data-subject="Test subject"
-  data-body="Body text">You need to enable javascript to see this text</span></br>
-  Note only the to field is encrypted. Everything else is cleartext. This may change in the future.
+    Here's my email with all parameters set:
+    <span class="email"
+      data-content="GuQ5ZmZasL5JY5nvWWmn"
+      data-cc="cc@example.com,cc2@example.com"
+      data-bcc="bcc@example.com"
+      data-subject="Test subject"
+      data-body="Body text"
+    >
+      You need to enable JavaScript to see this text
+    </span>
+    <br>
+    Note: Only the "to" field is encrypted. Everything else is cleartext. This may change in the future.
   </p>
+
   <p>
-    Here's only an email: <span class="email" data-content="zmFcblBNdGxGeVtdLGlEvQ" >You need to enable javascript to see this text</span>
+    Here's only an email:
+    <span class="email" data-content="zmFcblBNdGxGeVtdLGlEvQ">
+      You need to enable JavaScript to see this text
+    </span>
   </p>
-  <p>
-    <form id="form">
-      <label for="key">Key:</label><input id="key" name="key" value="0" type="number" min="0"></br>
-      <label for="encode">Text:</label><input id="encode" name="encode" value="" type="text"></br>
-      <input type="submit" value="Encode">
-  </p>
+
+  <form id="form">
+    <label for="key">Key:</label>
+    <input id="key" name="key" type="number" value="0" min="0"><br>
+
+    <label for="encode">Text:</label>
+    <input id="encode" name="encode" type="text" value=""><br>
+
+    <input type="submit" value="Encode">
   </form>
+
   <p id="toEncode">
-    <span class="instructions" data-content="Seeve2NbyleIbGY1VZwUbd9NFZYWYyJFVwUSIlBYGStMggUZaG1lIzUX1uI5mWNBiXMGbgkGvFhMXgxgBgWQWGWuGp9m">You need to enable javascript to see this text</span>
+    <span class="instructions"
+      data-content="Seeve2NbyleIbGY1VZwUbd9NFZYWYyJFVwUSIlBYGStMggUZaG1lIzUX1uI5mWNBiXMGbgkGvFhMXgxgBgWQWGWuGp9m">
+      You need to enable JavaScript to see this text
+    </span>
   </p>
 
-<script>
-var searchParams = new URLSearchParams(location.search);
-var toEncode = searchParams.getAll('encode');
-var key = searchParams.get('key');
-if (!key)
-  key=0;
+  <script>
+    // Optional developer warning for legacy build
+    if (typeof FYForward !== 'undefined') {
+      console.warn('FYShuffle: You are using the unversioned FYShuffle.js. For long-term stability, use a versioned file like FYShuffle.v0.9.0.js');
+    }
 
-var keyfield = document.getElementById("key");
-keyfield.value=key;
+    const searchParams = new URLSearchParams(location.search);
+    const toEncode = searchParams.getAll('encode');
+    let key = searchParams.get('key') || 0;
 
-var encodefield = document.getElementById("encode");
-encodefield.value=toEncode;
+    document.getElementById("key").value = key;
+    document.getElementById("encode").value = toEncode;
 
-var p = document.getElementById("toEncode");
+    const p = document.getElementById("toEncode");
 
-var n=toEncode.length;
-for(var i = 0; i < n; ++i) {
-  var np = document.createElement("p");
-  var span = document.createElement("span");
-  span.className = 'encode';
-  span.dataset['content']=toEncode[i];
-   np.appendChild(span);
-   span.insertAdjacentHTML('beforebegin', toEncode[i] + ' <=> ');
+    toEncode.forEach(str => {
+      const np = document.createElement("p");
+      const span = document.createElement("span");
+      span.className = 'encode';
+      span.dataset['content'] = str;
+      np.appendChild(span);
+      span.insertAdjacentHTML('beforebegin', `${str} <=> `);
+      p.parentNode.insertBefore(np, p.nextSibling);
+    });
 
-  p.parentNode.insertBefore(np, p.nextSibling);
-}
-
-scrambleClass('encode', key);
-unscrambleClass('instructions', key);
-mailtoClass('email', key);
-</script>
-</body></html>
+    scrambleClass('encode', key);
+    unscrambleClass('instructions', key);
+    mailtoClass('email', key);
+  </script>
+</body>
+</html>
