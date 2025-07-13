@@ -1,7 +1,3 @@
-console.warn(
-  'FYShuffle: You are using the unversioned FYShuffle.js. For long-term stability, consider switching to a versioned file like FYShuffle.v0.9.0.js',
-);
-
 /* FYShuffle.js — browser (UMD-style) */
 
 /**
