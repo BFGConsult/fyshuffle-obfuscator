@@ -34,7 +34,6 @@ import * as terser from 'terser';
 
 const __dirname = path.resolve();
 const distDir = path.join(__dirname, 'dist');
-
 const pkgPath = path.join(__dirname, 'package.json');
 const pkg = JSON.parse(await fs.readFile(pkgPath, 'utf8'));
 
@@ -154,7 +153,13 @@ async function buildTarget(targetKey) {
       console.log(`✔️  Minified FYShuffle.min.js`);
     }
 
-    return { target: targetKey, success: true };
+    // Write versioned file
+    const versionedName = out.replace(/\.js$/, `.v${pkg.version}.js`);
+    const versionedPath = path.join(distDir, versionedName);
+    await fs.writeFile(versionedPath, output, 'utf8');
+    console.log(`📦  Wrote versioned: ${versionedName}`);
+
+    return { target: targetKey, versioned: versionedName, success: true };
   } catch (err) {
     console.error(`❌ Build failed for ${targetKey}: ${err.message}`);
     return { target: targetKey, success: false };
@@ -187,6 +192,28 @@ async function generateManifest(version) {
   console.log('📝 Wrote manifest.json');
 }
 
+async function updatePackageJson(version) {
+  const files = [
+    'FYShuffle.js',
+    `FYShuffle.v${version}.js`,
+    'FYShuffle.min.js',
+    'FYShuffle.node.js',
+    `FYShuffle.node.v${version}.js`,
+    'FYShuffle.module.js',
+    `FYShuffle.module.v${version}.js`,
+    'FYShuffle.d.ts',
+    'manifest.json',
+    'README.md',
+    'LICENSE',
+  ].map((f) => `dist/${f}`);
+
+  const pkgRaw = await fs.readFile(pkgPath, 'utf8');
+  const pkgJson = JSON.parse(pkgRaw);
+  pkgJson.files = files;
+  await fs.writeFile(pkgPath, JSON.stringify(pkgJson, null, 2), 'utf8');
+  console.log('📝 Updated package.json files list');
+}
+
 async function buildAll() {
   const keysToBuild = onlyTarget
     ? Object.keys(targets).includes(onlyTarget)
@@ -206,6 +233,7 @@ async function buildAll() {
   }
 
   await generateManifest(pkg.version);
+  await updatePackageJson(pkg.version);
 }
 
 buildAll();
