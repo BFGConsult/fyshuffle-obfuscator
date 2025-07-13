@@ -12,7 +12,6 @@
  * - Strips `import` and `export` lines while preserving function/const/class declarations
  * - Beautifies output using Prettier
  * - Minifies browser build using Terser (dist/FYShuffle.min.js)
- * - Produces versioned files: e.g., FYShuffle.v0.0.9.js
  * - Supports CLI flags:
  *     --target=<name>   Build only a specific target (browser, node, esm)
  *     -v / --verbose    Show stripped import/export lines during build
@@ -36,11 +35,9 @@ import * as terser from 'terser';
 const __dirname = path.resolve();
 const distDir = path.join(__dirname, 'dist');
 
-const pkg = JSON.parse(await fs.readFile(path.join(__dirname, 'package.json'), 'utf8'));
-const version = pkg.version;
-const versionSuffix = `.v${version}.js`;
+const pkgPath = path.join(__dirname, 'package.json');
+const pkg = JSON.parse(await fs.readFile(pkgPath, 'utf8'));
 
-// Source files grouped by build target
 const sources = {
   browser: [
     'src/fyshuffle-core.js',
@@ -60,7 +57,6 @@ const sources = {
   ],
 };
 
-// Output config per target
 const targets = {
   browser: {
     out: 'FYShuffle.js',
@@ -76,55 +72,35 @@ const targets = {
   },
 };
 
-// Parse CLI flags
 const args = process.argv.slice(2);
 const targetArg = args.find((arg) => arg.startsWith('--target='));
 const onlyTarget = targetArg ? targetArg.split('=')[1] : null;
 const isVerbose = args.includes('-v') || args.includes('--verbose');
 
-// Helper to strip import/export lines and log them
 function stripModuleSyntax(code, filePath) {
   return code
     .split('\n')
     .map((line) => {
       const trimmed = line.trim();
-
       if (trimmed.startsWith('import')) {
-        if (isVerbose)
-          console.log(`⚠️  Stripped import from ${filePath}: ${trimmed}`);
+        if (isVerbose) console.log(`⚠️  Stripped import from ${filePath}: ${trimmed}`);
         return null;
       }
-
-      const exportMatch = trimmed.match(
-        /^export\s+(function|const|let|var|class)\s/
-      );
+      const exportMatch = trimmed.match(/^export\s+(function|const|let|var|class)\s/);
       if (exportMatch) {
-        if (isVerbose)
-          console.log(`⚠️  Removed 'export' from ${filePath}: ${trimmed}`);
+        if (isVerbose) console.log(`⚠️  Removed 'export' from ${filePath}: ${trimmed}`);
         return line.replace(/^export\s+/, '');
       }
-
       if (trimmed.startsWith('export')) {
-        if (isVerbose)
-          console.log(`⚠️  Stripped export from ${filePath}: ${trimmed}`);
+        if (isVerbose) console.log(`⚠️  Stripped export from ${filePath}: ${trimmed}`);
         return null;
       }
-
       return line;
     })
     .filter(Boolean)
     .join('\n');
 }
 
-// Write a renamed version of an existing file
-async function writeVersionedCopy(originalName, versionedName) {
-  const src = path.join(distDir, originalName);
-  const dst = path.join(distDir, versionedName);
-  await fs.copyFile(src, dst);
-  console.log(`📦  Copied ${originalName} → ${versionedName}`);
-}
-
-// Build a single target (browser, node, esm)
 async function buildTarget(targetKey) {
   const { out, banner } = targets[targetKey];
   const files = sources[targetKey];
@@ -140,7 +116,6 @@ async function buildTarget(targetKey) {
 
     let combined = `${banner}\n\n${contents.join('\n\n')}`;
 
-    // Add runtime exports for Node and ESM
     if (targetKey === 'node') {
       combined += `\n\nmodule.exports = { FYForward, FYBackward, genPerm, nextRand };`;
     }
@@ -148,42 +123,35 @@ async function buildTarget(targetKey) {
       combined += `\n\nexport { FYForward, FYBackward, genPerm, nextRand };`;
     }
 
+    const output = await prettier.format(combined, {
+      parser: 'babel',
+      semi: true,
+      singleQuote: true,
+    });
+
+    const outputPath = path.join(distDir, out);
     await fs.mkdir(distDir, { recursive: true });
+    await fs.writeFile(outputPath, output, 'utf8');
+    console.log(`✔️  Built ${out}`);
 
     if (targetKey === 'browser') {
-      const legacyWarning = `console.warn('FYShuffle: You are using the unversioned FYShuffle.js. For long-term stability, consider switching to a versioned file like FYShuffle.v${version}.js');\n\n`;
-      const legacyCombined = legacyWarning + combined;
+      const legacyWarning = `console.warn('FYShuffle: You are using the unversioned FYShuffle.js. For long-term stability, consider switching to a versioned file like FYShuffle.v${pkg.version}.js');\n\n`;
+      const combinedWithWarning = legacyWarning + combined;
 
-      const formattedLegacy = await prettier.format(legacyCombined, {
+      const formattedLegacy = await prettier.format(combinedWithWarning, {
         parser: 'babel',
         semi: true,
         singleQuote: true,
       });
 
-      const unversionedPath = path.join(distDir, out);
-      await fs.writeFile(unversionedPath, formattedLegacy, 'utf8');
-      console.log(`✔️  Built FYShuffle.js (legacy warning)`);
+      const legacyPath = path.join(distDir, 'FYShuffle.js');
+      await fs.writeFile(legacyPath, formattedLegacy, 'utf8');
+      console.log(`✔️  Built FYShuffle.js (with legacy warning)`);
 
       const minified = await terser.minify(combined);
       const minPath = path.join(distDir, 'FYShuffle.min.js');
       await fs.writeFile(minPath, minified.code, 'utf8');
       console.log(`✔️  Minified FYShuffle.min.js`);
-
-      await writeVersionedCopy('FYShuffle.js', `FYShuffle${versionSuffix}`);
-      await writeVersionedCopy('FYShuffle.min.js', `FYShuffle.v${version}.min.js`);
-    } else {
-      const formatted = await prettier.format(combined, {
-        parser: 'babel',
-        semi: true,
-        singleQuote: true,
-      });
-
-      const outputPath = path.join(distDir, out);
-      await fs.writeFile(outputPath, formatted, 'utf8');
-      console.log(`✔️  Built ${out}`);
-
-      const versionedName = out.replace(/\.js$/, `.v${version}.js`);
-      await writeVersionedCopy(out, versionedName);
     }
 
     return { target: targetKey, success: true };
@@ -193,7 +161,32 @@ async function buildTarget(targetKey) {
   }
 }
 
-// Build all selected targets
+async function generateManifest(version) {
+  const manifest = {
+    $schema: 'https://example.com/fyshuffle/manifest.schema.json',
+    schemaStatus: 'unstable',
+    version,
+    files: {
+      browser: {
+        legacy: 'FYShuffle.js',
+        versioned: `FYShuffle.v${version}.js`,
+      },
+      node: {
+        legacy: 'FYShuffle.node.js',
+        versioned: `FYShuffle.node.v${version}.js`,
+      },
+      esm: {
+        legacy: 'FYShuffle.module.js',
+        versioned: `FYShuffle.module.v${version}.js`,
+      },
+    },
+  };
+
+  const outPath = path.join(distDir, 'manifest.json');
+  await fs.writeFile(outPath, JSON.stringify(manifest, null, 2), 'utf8');
+  console.log('📝 Wrote manifest.json');
+}
+
 async function buildAll() {
   const keysToBuild = onlyTarget
     ? Object.keys(targets).includes(onlyTarget)
@@ -202,7 +195,6 @@ async function buildAll() {
     : Object.keys(targets);
 
   const results = await Promise.all(keysToBuild.map(buildTarget));
-
   const failed = results.filter((r) => !r.success);
 
   if (failed.length === 0) {
@@ -212,6 +204,8 @@ async function buildAll() {
     failed.forEach((r) => console.log(` - ${r.target}`));
     process.exitCode = 1;
   }
+
+  await generateManifest(pkg.version);
 }
 
 buildAll();
