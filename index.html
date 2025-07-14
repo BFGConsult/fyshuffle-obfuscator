@@ -2,14 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Testing FYShuffle</title>
-  <script src="dist/FYShuffle.js"></script>
+    <title>Testing FYShuffle</title>
+    <!-- We actually want to use the unversioned variant here, since -->
+    <!-- we want this page to be compatible with latest -->
+    <script src="dist/FYShuffle.js"></script>
 </head>
 
 <body>
   <p>
     Here's my email with all parameters set:
-    <span class="ZW1haWw="
+    <span class="aWWh1Zw"
       data-content="GuQ5ZmZasL5JY5nvWWmn"
       data-cc="cc@example.com,cc2@example.com"
       data-bcc="bcc@example.com"
@@ -24,7 +26,7 @@
 
   <p>
     Here's only an email:
-    <span class="ZW1haWw=" data-content="zmFcblBNdGxGeVtdLGlEvQ">
+    <span class="aWWh1Zw" data-content="zmFcblBNdGxGeVtdLGlEvQ">
       You need to enable JavaScript to see this text
     </span>
   </p>
@@ -73,7 +75,7 @@
 
     scrambleClass('encode', key);
     unscrambleClass('instructions', key);
-    mailtoClass('ZW1haWw=', key);
+    mtoClass(key);
   </script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 {
   "name": "fyshuffle",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "type": "module",
   "main": "./dist/FYShuffle.node.js",
   "module": "./dist/FYShuffle.module.js",
@@ -31,12 +31,12 @@
   },
   "files": [
     "dist/FYShuffle.js",
-    "dist/FYShuffle.v0.9.0.js",
+    "dist/FYShuffle.v0.9.1.js",
     "dist/FYShuffle.min.js",
     "dist/FYShuffle.node.js",
-    "dist/FYShuffle.node.v0.9.0.js",
+    "dist/FYShuffle.node.v0.9.1.js",
     "dist/FYShuffle.module.js",
-    "dist/FYShuffle.module.v0.9.0.js",
+    "dist/FYShuffle.module.v0.9.1.js",
     "dist/FYShuffle.d.ts",
     "dist/manifest.json",
     "dist/README.md",
