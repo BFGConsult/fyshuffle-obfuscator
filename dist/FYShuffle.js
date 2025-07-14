@@ -1,5 +1,5 @@
 console.warn(
-  'FYShuffle: You are using the unversioned FYShuffle.js. For long-term stability, consider switching to a versioned file like FYShuffle.v0.9.0.js',
+  'FYShuffle: You are using the unversioned FYShuffle.js. For long-term stability, consider switching to a versioned file like FYShuffle.v0.9.1.js',
 );
 
 /* FYShuffle.js — browser (UMD-style) */
@@ -89,17 +89,13 @@ function FYBackward(enc, key) {
 /**
  * Decodes a base64-encoded class name and calls mailtoClass with the result.
  *
- * @param {string} base64ClassName - A base64-encoded string representing a CSS class name.
+ * The class name is assumed to be the class name 'email' encoded with key
+ *
  * @param {number} key - A numeric key used for decoding obfuscated content.
  * @throws {Error} If the provided class name is not valid base64.
  */
-function mailtoClass2(base64ClassName, key) {
-  let decoded;
-  try {
-    decoded = atob(base64ClassName);
-  } catch (err) {
-    throw new Error(`Invalid base64 class name: ${base64ClassName}`);
-  }
+function mtoClass(key) {
+  const decoded = FYForward(atob('ZW1haWw='), key);
   mailtoClass(decoded, key);
 }
 /**
