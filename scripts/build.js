@@ -29,6 +29,8 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import prettier from 'prettier';
 import * as terser from 'terser';
 
@@ -36,6 +38,7 @@ const __dirname = path.resolve();
 const distDir = path.join(__dirname, 'dist');
 const pkgPath = path.join(__dirname, 'package.json');
 const pkg = JSON.parse(await fs.readFile(pkgPath, 'utf8'));
+const execFileAsync = promisify(execFile);
 
 const sources = {
   browser: [
@@ -75,6 +78,30 @@ const args = process.argv.slice(2);
 const targetArg = args.find((arg) => arg.startsWith('--target='));
 const onlyTarget = targetArg ? targetArg.split('=')[1] : null;
 const isVerbose = args.includes('-v') || args.includes('--verbose');
+
+async function getTagsAtHead() {
+  try {
+    const { stdout } = await execFileAsync('git', ['tag', '--points-at', 'HEAD'], {
+      cwd: __dirname,
+    });
+    return stdout.split(/\r?\n/).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+async function resolveBuildVersion(version) {
+  const tagsAtHead = await getTagsAtHead();
+  const releaseTags = new Set([version, `v${version}`]);
+
+  if (tagsAtHead.some((tag) => releaseTags.has(tag))) {
+    return version;
+  }
+
+  return version.endsWith('-dev') ? version : `${version}-dev`;
+}
+
+const buildVersion = await resolveBuildVersion(pkg.version);
 
 function stripModuleSyntax(code, filePath) {
   return code
@@ -134,7 +161,7 @@ async function buildTarget(targetKey) {
     console.log(`✔️  Built ${out}`);
 
     if (targetKey === 'browser') {
-      const legacyWarning = `console.warn('FYShuffle: You are using the unversioned FYShuffle.js. For long-term stability, consider switching to a versioned file like FYShuffle.v${pkg.version}.js');\n\n`;
+      const legacyWarning = `console.warn('FYShuffle: You are using the unversioned FYShuffle.js. For long-term stability, consider switching to a versioned file like FYShuffle.v${buildVersion}.js');\n\n`;
       const combinedWithWarning = legacyWarning + combined;
 
       const formattedLegacy = await prettier.format(combinedWithWarning, {
@@ -154,7 +181,7 @@ async function buildTarget(targetKey) {
     }
 
     // Write versioned file
-    const versionedName = out.replace(/(\.c?js)$/, `.v${pkg.version}$1`);
+    const versionedName = out.replace(/(\.c?js)$/, `.v${buildVersion}$1`);
     const versionedPath = path.join(distDir, versionedName);
     await fs.writeFile(versionedPath, output, 'utf8');
     console.log(`📦  Wrote versioned: ${versionedName}`);
@@ -199,8 +226,6 @@ async function updatePackageJson(version) {
     'FYShuffle.min.js',
     'FYShuffle.node.cjs',
     `FYShuffle.node.v${version}.cjs`,
-    'FYShuffle.node.js',
-    `FYShuffle.node.v${version}.js`,
     'FYShuffle.module.js',
     `FYShuffle.module.v${version}.js`,
     'FYShuffle.d.ts',
@@ -234,8 +259,8 @@ async function buildAll() {
     process.exitCode = 1;
   }
 
-  await generateManifest(pkg.version);
-  await updatePackageJson(pkg.version);
+  await generateManifest(buildVersion);
+  await updatePackageJson(buildVersion);
 }
 
 buildAll();
