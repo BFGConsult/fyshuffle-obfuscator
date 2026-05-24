@@ -101,7 +101,28 @@ async function resolveBuildVersion(version) {
   return version.endsWith('-dev') ? version : `${version}-dev`;
 }
 
+async function resolveStableBrowserVersion(version, buildVersion) {
+  if (buildVersion === version) {
+    return version;
+  }
+
+  try {
+    const legacyBrowserPath = path.join(distDir, 'FYShuffle.js');
+    const legacyBrowser = await fs.readFile(legacyBrowserPath, 'utf8');
+    const match = legacyBrowser.match(/FYShuffle\.v([0-9]+\.[0-9]+\.[0-9]+)\.js/);
+
+    if (match) {
+      return match[1];
+    }
+  } catch {
+    // Fall back to the package version if the stable browser artifact is absent.
+  }
+
+  return version;
+}
+
 const buildVersion = await resolveBuildVersion(pkg.version);
+const stableBrowserVersion = await resolveStableBrowserVersion(pkg.version, buildVersion);
 const isReleaseBuild = buildVersion === pkg.version;
 const browserLegacyFile = isReleaseBuild ? 'FYShuffle.js' : 'FYShuffle-dev.js';
 
@@ -206,6 +227,7 @@ async function generateManifest(version) {
     files: {
       browser: {
         legacy: 'FYShuffle.js',
+        stable: `FYShuffle.v${stableBrowserVersion}.js`,
         ...(isReleaseBuild ? {} : { dev: browserLegacyFile }),
         versioned: `FYShuffle.v${version}.js`,
       },
