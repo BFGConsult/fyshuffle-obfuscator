@@ -243,7 +243,7 @@ async function generateManifest(version) {
   };
 
   const outPath = path.join(distDir, 'manifest.json');
-  await fs.writeFile(outPath, JSON.stringify(manifest, null, 2), 'utf8');
+  await fs.writeFile(outPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
   console.log('📝 Wrote manifest.json');
 }
 
@@ -265,7 +265,7 @@ async function updatePackageJson(version) {
   const pkgRaw = await fs.readFile(pkgPath, 'utf8');
   const pkgJson = JSON.parse(pkgRaw);
   pkgJson.files = files;
-  await fs.writeFile(pkgPath, JSON.stringify(pkgJson, null, 2), 'utf8');
+  await fs.writeFile(pkgPath, `${JSON.stringify(pkgJson, null, 2)}\n`, 'utf8');
   console.log('📝 Updated package.json files list');
 }
 
