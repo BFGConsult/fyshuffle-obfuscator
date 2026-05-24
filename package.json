@@ -2,7 +2,7 @@
   "name": "fyshuffle",
   "version": "0.9.1",
   "type": "module",
-  "main": "./dist/FYShuffle.node.js",
+  "main": "./dist/FYShuffle.node.cjs",
   "module": "./dist/FYShuffle.module.js",
   "browser": "./dist/FYShuffle.js",
   "types": "./dist/FYShuffle.d.ts",
@@ -13,7 +13,7 @@
     },
     "require": {
       "types": "./dist/FYShuffle.d.ts",
-      "default": "./dist/FYShuffle.node.js"
+      "default": "./dist/FYShuffle.node.cjs"
     }
   },
   "scripts": {
@@ -34,6 +34,8 @@
     "dist/FYShuffle.js",
     "dist/FYShuffle.v0.9.1.js",
     "dist/FYShuffle.min.js",
+    "dist/FYShuffle.node.cjs",
+    "dist/FYShuffle.node.v0.9.1.cjs",
     "dist/FYShuffle.node.js",
     "dist/FYShuffle.node.v0.9.1.js",
     "dist/FYShuffle.module.js",

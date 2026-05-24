@@ -4,7 +4,7 @@
  * This Node.js script assembles and outputs standalone JavaScript bundles for different environments:
  *
  * - browser (UMD-style):   dist/FYShuffle.js
- * - node (CommonJS):       dist/FYShuffle.node.js
+ * - node (CommonJS):       dist/FYShuffle.node.cjs
  * - esm (ES Modules):      dist/FYShuffle.module.js
  *
  * Key Features:
@@ -62,7 +62,7 @@ const targets = {
     banner: '/* FYShuffle.js — browser (UMD-style) */',
   },
   node: {
-    out: 'FYShuffle.node.js',
+    out: 'FYShuffle.node.cjs',
     banner: '/* FYShuffle — Node (CommonJS) */',
   },
   esm: {
@@ -154,7 +154,7 @@ async function buildTarget(targetKey) {
     }
 
     // Write versioned file
-    const versionedName = out.replace(/\.js$/, `.v${pkg.version}.js`);
+    const versionedName = out.replace(/(\.c?js)$/, `.v${pkg.version}$1`);
     const versionedPath = path.join(distDir, versionedName);
     await fs.writeFile(versionedPath, output, 'utf8');
     console.log(`📦  Wrote versioned: ${versionedName}`);
@@ -177,8 +177,8 @@ async function generateManifest(version) {
         versioned: `FYShuffle.v${version}.js`,
       },
       node: {
-        legacy: 'FYShuffle.node.js',
-        versioned: `FYShuffle.node.v${version}.js`,
+        legacy: 'FYShuffle.node.cjs',
+        versioned: `FYShuffle.node.v${version}.cjs`,
       },
       esm: {
         legacy: 'FYShuffle.module.js',
@@ -197,6 +197,8 @@ async function updatePackageJson(version) {
     'FYShuffle.js',
     `FYShuffle.v${version}.js`,
     'FYShuffle.min.js',
+    'FYShuffle.node.cjs',
+    `FYShuffle.node.v${version}.cjs`,
     'FYShuffle.node.js',
     `FYShuffle.node.v${version}.js`,
     'FYShuffle.module.js',
