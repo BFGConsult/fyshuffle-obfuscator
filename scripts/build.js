@@ -102,6 +102,8 @@ async function resolveBuildVersion(version) {
 }
 
 const buildVersion = await resolveBuildVersion(pkg.version);
+const isReleaseBuild = buildVersion === pkg.version;
+const browserLegacyFile = isReleaseBuild ? 'FYShuffle.js' : 'FYShuffle-dev.js';
 
 function stripModuleSyntax(code, filePath) {
   return code
@@ -155,13 +157,10 @@ async function buildTarget(targetKey) {
       singleQuote: true,
     });
 
-    const outputPath = path.join(distDir, out);
     await fs.mkdir(distDir, { recursive: true });
-    await fs.writeFile(outputPath, output, 'utf8');
-    console.log(`✔️  Built ${out}`);
 
     if (targetKey === 'browser') {
-      const legacyWarning = `console.warn('FYShuffle: You are using the unversioned FYShuffle.js. For long-term stability, consider switching to a versioned file like FYShuffle.v${buildVersion}.js');\n\n`;
+      const legacyWarning = `console.warn('FYShuffle: You are using the unversioned ${browserLegacyFile}. For long-term stability, consider switching to a versioned file like FYShuffle.v${buildVersion}.js');\n\n`;
       const combinedWithWarning = legacyWarning + combined;
 
       const formattedLegacy = await prettier.format(combinedWithWarning, {
@@ -170,14 +169,20 @@ async function buildTarget(targetKey) {
         singleQuote: true,
       });
 
-      const legacyPath = path.join(distDir, 'FYShuffle.js');
+      const legacyPath = path.join(distDir, browserLegacyFile);
       await fs.writeFile(legacyPath, formattedLegacy, 'utf8');
-      console.log(`✔️  Built FYShuffle.js (with legacy warning)`);
+      console.log(`✔️  Built ${browserLegacyFile} (with legacy warning)`);
 
-      const minified = await terser.minify(combined);
-      const minPath = path.join(distDir, 'FYShuffle.min.js');
-      await fs.writeFile(minPath, minified.code, 'utf8');
-      console.log(`✔️  Minified FYShuffle.min.js`);
+      if (isReleaseBuild) {
+        const minified = await terser.minify(combined);
+        const minPath = path.join(distDir, 'FYShuffle.min.js');
+        await fs.writeFile(minPath, minified.code, 'utf8');
+        console.log(`✔️  Minified FYShuffle.min.js`);
+      }
+    } else {
+      const outputPath = path.join(distDir, out);
+      await fs.writeFile(outputPath, output, 'utf8');
+      console.log(`✔️  Built ${out}`);
     }
 
     // Write versioned file
@@ -200,7 +205,7 @@ async function generateManifest(version) {
     version,
     files: {
       browser: {
-        legacy: 'FYShuffle.js',
+        legacy: browserLegacyFile,
         versioned: `FYShuffle.v${version}.js`,
       },
       node: {
@@ -221,9 +226,9 @@ async function generateManifest(version) {
 
 async function updatePackageJson(version) {
   const files = [
-    'FYShuffle.js',
+    browserLegacyFile,
     `FYShuffle.v${version}.js`,
-    'FYShuffle.min.js',
+    ...(isReleaseBuild ? ['FYShuffle.min.js'] : []),
     'FYShuffle.node.cjs',
     `FYShuffle.node.v${version}.cjs`,
     'FYShuffle.module.js',
