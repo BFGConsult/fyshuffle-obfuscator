@@ -205,7 +205,8 @@ async function generateManifest(version) {
     version,
     files: {
       browser: {
-        legacy: browserLegacyFile,
+        legacy: 'FYShuffle.js',
+        ...(isReleaseBuild ? {} : { dev: browserLegacyFile }),
         versioned: `FYShuffle.v${version}.js`,
       },
       node: {
