@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FYShuffle observe modes example</title>
+  <script src="../dist/FYShuffle-dev.js"></script>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    main {
+      margin: 0 auto;
+      max-width: 760px;
+      padding: 32px 20px 96px;
+    }
+
+    .spacer {
+      align-items: center;
+      border: 1px dashed #9ca3af;
+      color: #4b5563;
+      display: flex;
+      height: 100vh;
+      justify-content: center;
+      margin: 32px 0;
+    }
+
+    .panel {
+      border: 1px solid #d1d5db;
+      margin: 16px 0;
+      padding: 16px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>FYShuffle.observe modes</h1>
+    <p>
+      The three blocks below exercise <code>mailto</code>, <code>text</code>, and
+      <code>scramble</code> through one observer call.
+    </p>
+
+    <div class="spacer">Scroll to reveal the observed blocks</div>
+
+    <section class="panel">
+      <h2>Mailto</h2>
+      <span class="mode-email" data-content="mtBlJlxUeszcLQavlmFNZGWGbd">
+        Protected email has not been displayed yet.
+      </span>
+    </section>
+
+    <section class="panel">
+      <h2>Text</h2>
+      <span id="mode-text" data-content="nYVgV3ZllsNRZQvubGhwcGSI0WGYGk">
+        Protected text has not been displayed yet.
+      </span>
+    </section>
+
+    <section class="panel">
+      <h2>Scramble</h2>
+      <span class="mode-scramble" data-content="Encode me on sight">
+        This visible text will be replaced with its obfuscated value.
+      </span>
+    </section>
+
+    <script>
+      FYShuffle.observe({
+        key: 123456,
+        mailto: 'mode-email',
+        text: '#mode-text',
+        scramble: 'mode-scramble'
+      });
+    </script>
+  </main>
+</body>
+</html>

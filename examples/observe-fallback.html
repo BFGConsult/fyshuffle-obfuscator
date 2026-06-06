@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FYShuffle observe fallback example</title>
+  <script>
+    window.IntersectionObserver = undefined;
+  </script>
+  <script src="../dist/FYShuffle-dev.js"></script>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      line-height: 1.5;
+      margin: 32px auto;
+      max-width: 720px;
+      padding: 0 20px;
+    }
+
+    .target {
+      border: 1px solid #d1d5db;
+      padding: 16px;
+    }
+  </style>
+</head>
+<body>
+  <h1>FYShuffle.observe fallback</h1>
+  <p>
+    This page disables <code>IntersectionObserver</code> before loading FYShuffle.
+    The fallback path should not decode the protected address.
+  </p>
+
+  <p class="target">
+    Contact:
+    <span class="observed-email" data-content="GBNUbeb0xZFclQtLGFmlvG">
+      Protected content has not been displayed yet.
+    </span>
+  </p>
+
+  <script>
+    FYShuffle.observe({
+      key: 123456,
+      mailto: 'observed-email',
+      fallbackText: 'Contact information requires viewport observation.'
+    });
+  </script>
+</body>
+</html>

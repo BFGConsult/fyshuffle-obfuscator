@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FYShuffle observe basic example</title>
+  <script src="../dist/FYShuffle-dev.js"></script>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    main {
+      margin: 0 auto;
+      max-width: 720px;
+      padding: 32px 20px 96px;
+    }
+
+    .spacer {
+      align-items: center;
+      border: 1px dashed #9ca3af;
+      color: #4b5563;
+      display: flex;
+      height: 110vh;
+      justify-content: center;
+      margin: 32px 0;
+    }
+
+    .target {
+      border: 1px solid #d1d5db;
+      padding: 16px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>FYShuffle.observe basic</h1>
+    <p>
+      This page leaves the email obfuscated until the target block intersects the viewport.
+      Inspecting page text before scrolling should not reveal the email address.
+    </p>
+
+    <div class="spacer">Scroll down to trigger the observer</div>
+
+    <p class="target">
+      Contact:
+      <span class="observed-email" data-content="mtBlJlxUeszcLQavlmFNZGWGbd">
+        Protected content has not been displayed yet.
+      </span>
+    </p>
+
+    <script>
+      FYShuffle.observe({ key: 123456, mailto: 'observed-email' });
+    </script>
+  </main>
+</body>
+</html>
