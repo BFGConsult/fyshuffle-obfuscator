@@ -49,6 +49,9 @@ async function loadBrowserContext(options = {}) {
     btoa(value) {
       return Buffer.from(value, 'binary').toString('base64');
     },
+    TextDecoder,
+    TextEncoder,
+    Uint8Array,
     warnings,
     ...options,
   };
@@ -194,6 +197,51 @@ test('browser namespace exposes FYShuffle.apply and core helpers', async () => {
   ]) {
     assert.equal(typeof context.FYShuffle[name], 'function', `${name} should be available`);
   }
+});
+
+test('browser FYForward and FYBackward round-trip representative Unicode text', async () => {
+  const context = await loadBrowserContext();
+  const cases = [
+    { text: 'hello@example.com', key: 123456 },
+    { text: '', key: 0 },
+    { text: 'hi', key: 42 },
+    { text: 'æøå café', key: 8675309 },
+    { text: 'Snowman ☃ and emoji 😀', key: 998877 },
+  ];
+
+  for (const { text, key } of cases) {
+    assert.equal(context.FYBackward(context.FYForward(text, key), key), text);
+  }
+});
+
+test('browser FYForward matches the Node UTF-8 implementation', async () => {
+  const context = await loadBrowserContext();
+  const node = await import('../dist/FYShuffle.module.js');
+  const cases = [
+    { text: 'hello@example.com', key: 123456 },
+    { text: 'hi', key: 42 },
+    { text: 'æøå café', key: 8675309 },
+    { text: 'Snowman ☃ and emoji 😀', key: 998877 },
+  ];
+
+  for (const { text, key } of cases) {
+    assert.equal(context.FYForward(text, key), node.FYForward(text, key));
+  }
+});
+
+test('browser FYBackward decodes legacy Latin-1 browser payloads where possible', async () => {
+  const context = await loadBrowserContext();
+  const key = 8675309;
+  const text = 'æøå café';
+  const b64 = Buffer.from(text, 'binary').toString('base64').replace(/=+$/, '');
+  const perm = context.genPerm(b64.length, key);
+  let encoded = '';
+
+  for (let i = 0; i < b64.length; i++) {
+    encoded += b64[perm[i]];
+  }
+
+  assert.equal(context.FYBackward(encoded, key), text);
 });
 
 test('FYShuffle.observe waits for intersecting mailto targets', async () => {
@@ -367,6 +415,29 @@ test('FYShuffle.apply decodes obfuscated mailto parameters', async () => {
   );
 });
 
+test('FYShuffle.apply decodes Unicode mailto content', async () => {
+  const context = await loadBrowserContext();
+  const key = 123456;
+  const element = new FakeElement('span', {
+    className: 'email',
+    dataset: {
+      content: context.FYForward('kontakt+æøå@example.com', key),
+      subjectContent: context.FYForward('Møte på café ☕', key),
+      bodyContent: context.FYForward('Hei fra Tromsø 😀', key),
+    },
+  });
+  context.document = new FakeDocument([element]);
+
+  context.FYShuffle.apply({ key, mailto: 'email' });
+
+  const anchor = context.document.root.children[0];
+  assert.equal(
+    anchor.href,
+    'mailto:kontakt+æøå@example.com?subject=M%C3%B8te%20p%C3%A5%20caf%C3%A9%20%E2%98%95&body=Hei%20fra%20Troms%C3%B8%20%F0%9F%98%80'
+  );
+  assert.equal(anchor.text, 'kontakt+æøå@example.com');
+});
+
 test('FYShuffle.apply decodes compact obfuscated mailto payloads', async () => {
   const context = await loadBrowserContext();
   const key = 123456;
@@ -391,6 +462,30 @@ test('FYShuffle.apply decodes compact obfuscated mailto payloads', async () => {
   assert.equal(
     anchor.href,
     'mailto:hello@example.com?cc=cc%40example.com&cc=cc2%40example.com&bcc=bcc%40example.com&subject=Hello%20there&body=Body%20text'
+  );
+});
+
+test('FYShuffle.apply decodes compact Unicode mailto payloads', async () => {
+  const context = await loadBrowserContext();
+  const key = 123456;
+  const payload = {
+    to: 'kontakt+æøå@example.com',
+    subject: 'Møte på café ☕',
+    body: 'Hei fra Tromsø 😀',
+  };
+  const element = new FakeElement('span', {
+    className: 'email',
+    dataset: {
+      content: context.FYForward(JSON.stringify(payload), key),
+    },
+  });
+  context.document = new FakeDocument([element]);
+
+  context.FYShuffle.apply({ key, mailto: 'email' });
+
+  assert.equal(
+    context.document.root.children[0].href,
+    'mailto:kontakt+æøå@example.com?subject=M%C3%B8te%20p%C3%A5%20caf%C3%A9%20%E2%98%95&body=Hei%20fra%20Troms%C3%B8%20%F0%9F%98%80'
   );
 });
 
@@ -471,6 +566,20 @@ test('FYShuffle.apply processes text targets using explicit selectors', async ()
   context.FYShuffle.apply({ key, text: '#secret' });
 
   assert.deepEqual(context.document.root.children, ['Hidden text']);
+});
+
+test('FYShuffle.apply processes Unicode text targets', async () => {
+  const context = await loadBrowserContext();
+  const key = 42;
+  const element = new FakeElement('span', {
+    id: 'secret',
+    dataset: { content: context.FYForward('Skjult æøå café 😀', key) },
+  });
+  context.document = new FakeDocument([element]);
+
+  context.FYShuffle.apply({ key, text: '#secret' });
+
+  assert.deepEqual(context.document.root.children, ['Skjult æøå café 😀']);
 });
 
 test('FYShuffle.apply processes scramble targets', async () => {
