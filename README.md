@@ -69,6 +69,22 @@ Other modes include `text` for decoded plain text and `scramble` for encoding vi
 Legacy helpers such as `mailtoClass()`, `scrambleClass()`, and `unscrambleClass()` still work,
 but they are deprecated in favor of `FYShuffle.apply()`.
 
+Mailto parameters can also be obfuscated with `data-*-content` attributes:
+
+```html
+<span
+  class="fyshuffle-mailto"
+  data-content="obfuscatedTo"
+  data-subject-content="obfuscatedSubject"
+  data-body-content="obfuscatedBody"
+>
+  Protected contact
+</span>
+```
+
+Do not mix cleartext and obfuscated forms for the same field. For example,
+`data-subject` and `data-subject-content` on the same element is an error.
+
 Use `FYShuffle.observe()` to delay DOM transformations until matching elements become visible:
 
 ```html
@@ -96,6 +112,17 @@ const original = FYBackward(scrambled, key);
 
 console.log(original); // hello@example.com
 ```
+
+### CLI
+
+```bash
+fyshuffle encode --key 123456 --text hello@example.com
+fyshuffle decode --key 123456 --text obfuscatedValue
+fyshuffle mailto --key 123456 --to hello@example.com --subject "Hello"
+```
+
+The `mailto` command prints an HTML snippet with obfuscated `data-*` attributes.
+The browser generator in `examples/generate-mailto.html` provides the same workflow in a page.
 
 ---
 

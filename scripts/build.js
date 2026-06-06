@@ -249,18 +249,19 @@ async function generateManifest(version) {
 
 async function updatePackageJson(version) {
   const files = [
-    browserLegacyFile,
-    `FYShuffle.v${version}.js`,
-    ...(isReleaseBuild ? ['FYShuffle.min.js'] : []),
-    'FYShuffle.node.cjs',
-    `FYShuffle.node.v${version}.cjs`,
-    'FYShuffle.module.js',
-    `FYShuffle.module.v${version}.js`,
-    'FYShuffle.d.ts',
-    'manifest.json',
-    'README.md',
-    'LICENSE',
-  ].map((f) => `dist/${f}`);
+    `dist/${browserLegacyFile}`,
+    `dist/FYShuffle.v${version}.js`,
+    ...(isReleaseBuild ? ['dist/FYShuffle.min.js'] : []),
+    'dist/FYShuffle.node.cjs',
+    `dist/FYShuffle.node.v${version}.cjs`,
+    'dist/FYShuffle.module.js',
+    `dist/FYShuffle.module.v${version}.js`,
+    'dist/FYShuffle.d.ts',
+    'dist/manifest.json',
+    'dist/README.md',
+    'dist/LICENSE',
+    'bin/fyshuffle.js',
+  ];
 
   const pkgRaw = await fs.readFile(pkgPath, 'utf8');
   const pkgJson = JSON.parse(pkgRaw);

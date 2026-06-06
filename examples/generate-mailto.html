@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FYShuffle mailto generator</title>
+  <script src="../dist/FYShuffle-dev.js"></script>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      line-height: 1.5;
+      margin: 32px auto;
+      max-width: 840px;
+      padding: 0 20px;
+    }
+
+    label {
+      display: block;
+      margin: 12px 0;
+    }
+
+    input,
+    textarea {
+      box-sizing: border-box;
+      display: block;
+      font: inherit;
+      max-width: 520px;
+      width: 100%;
+    }
+
+    textarea {
+      min-height: 84px;
+    }
+
+    pre {
+      border: 1px solid #d1d5db;
+      overflow: auto;
+      padding: 16px;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>FYShuffle mailto generator</h1>
+  <p>Generate a pasteable HTML snippet with obfuscated mailto fields.</p>
+
+  <form id="generator">
+    <label>
+      Key
+      <input name="key" type="number" value="123456" required>
+    </label>
+    <label>
+      To
+      <input name="to" type="email" value="hello@example.com" required>
+    </label>
+    <label>
+      CC
+      <input name="cc" type="text" placeholder="cc@example.com,cc2@example.com">
+    </label>
+    <label>
+      BCC
+      <input name="bcc" type="text">
+    </label>
+    <label>
+      Subject
+      <input name="subject" type="text">
+    </label>
+    <label>
+      Body
+      <textarea name="body"></textarea>
+    </label>
+    <label>
+      Class
+      <input name="className" type="text" value="fyshuffle-mailto">
+    </label>
+    <label>
+      Visible fallback text
+      <input name="text" type="text" value="Protected contact">
+    </label>
+    <button type="submit">Generate</button>
+  </form>
+
+  <h2>HTML</h2>
+  <pre id="output"></pre>
+
+  <script>
+    const form = document.getElementById('generator');
+    const output = document.getElementById('output');
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    function generate(event) {
+      event.preventDefault();
+
+      const data = new FormData(form);
+      const key = Number(data.get('key'));
+      const attrs = [
+        ['class', data.get('className') || 'fyshuffle-mailto'],
+        ['data-content', FYShuffle.FYForward(data.get('to'), key)],
+      ];
+
+      for (const field of ['cc', 'bcc', 'subject', 'body']) {
+        const value = data.get(field);
+        if (value) {
+          attrs.push([`data-${field}-content`, FYShuffle.FYForward(value, key)]);
+        }
+      }
+
+      const attrText = attrs
+        .map(([name, value]) => `${name}="${escapeHtml(value)}"`)
+        .join(' ');
+      output.textContent = `<span ${attrText}>${escapeHtml(data.get('text') || 'Protected contact')}</span>`;
+    }
+
+    form.addEventListener('submit', generate);
+    form.dispatchEvent(new Event('submit'));
+  </script>
+</body>
+</html>

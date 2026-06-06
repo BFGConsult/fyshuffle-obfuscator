@@ -36,14 +36,32 @@ function transformMailtoElement(element, key) {
     const fields = [];
     const esc = encodeURIComponent;
 
+    function getMailtoField(field) {
+        const encodedField = `${field}Content`;
+        const hasCleartext = field in element.dataset;
+        const hasEncoded = encodedField in element.dataset;
+
+        if (hasCleartext && hasEncoded) {
+            throw new Error(`FYShuffle: data-${field} and data-${field}-content cannot both be set`);
+        }
+        if (hasEncoded) {
+            return FYBackward(element.dataset[encodedField], key);
+        }
+        if (hasCleartext) {
+            return element.dataset[field];
+        }
+        return undefined;
+    }
+
     for (const field of ['cc', 'bcc', 'subject', 'body']) {
-        if (field in element.dataset) {
+        const value = getMailtoField(field);
+        if (value !== undefined) {
             if (field[field.length - 1] === 'c') {
-                for (const mail of element.dataset[field].split(',')) {
+                for (const mail of value.split(',')) {
                     fields.push(`${field}=${esc(mail)}`);
                 }
             } else {
-                fields.push(`${field}=${esc(element.dataset[field])}`);
+                fields.push(`${field}=${esc(value)}`);
             }
         }
     }

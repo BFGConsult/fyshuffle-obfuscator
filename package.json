@@ -6,6 +6,9 @@
   "module": "./dist/FYShuffle.module.js",
   "browser": "./dist/FYShuffle.js",
   "types": "./dist/FYShuffle.d.ts",
+  "bin": {
+    "fyshuffle": "./bin/fyshuffle.js"
+  },
   "exports": {
     "import": {
       "types": "./dist/FYShuffle.d.ts",
@@ -40,6 +43,7 @@
     "dist/FYShuffle.d.ts",
     "dist/manifest.json",
     "dist/README.md",
-    "dist/LICENSE"
+    "dist/LICENSE",
+    "bin/fyshuffle.js"
   ]
 }

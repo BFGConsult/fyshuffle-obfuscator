@@ -343,6 +343,71 @@ test('FYShuffle.apply processes mailto targets using simple class names', async 
   assert.equal(anchor.text, 'hello@example.com');
 });
 
+test('FYShuffle.apply decodes obfuscated mailto parameters', async () => {
+  const context = await loadBrowserContext();
+  const key = 123456;
+  const element = new FakeElement('span', {
+    className: 'email',
+    dataset: {
+      content: context.FYForward('hello@example.com', key),
+      ccContent: context.FYForward('cc@example.com,cc2@example.com', key),
+      bccContent: context.FYForward('bcc@example.com', key),
+      subjectContent: context.FYForward('Hello there', key),
+      bodyContent: context.FYForward('Body text', key),
+    },
+  });
+  context.document = new FakeDocument([element]);
+
+  context.FYShuffle.apply({ key, mailto: 'email' });
+
+  const anchor = context.document.root.children[0];
+  assert.equal(
+    anchor.href,
+    'mailto:hello@example.com?cc=cc%40example.com&cc=cc2%40example.com&bcc=bcc%40example.com&subject=Hello%20there&body=Body%20text'
+  );
+});
+
+test('FYShuffle.apply rejects cleartext and obfuscated mailto field conflicts', async () => {
+  const context = await loadBrowserContext();
+  const key = 123456;
+  const element = new FakeElement('span', {
+    className: 'email',
+    dataset: {
+      content: context.FYForward('hello@example.com', key),
+      subject: 'Clear subject',
+      subjectContent: context.FYForward('Encoded subject', key),
+    },
+  });
+  context.document = new FakeDocument([element]);
+
+  assert.throws(
+    () => context.FYShuffle.apply({ key, mailto: 'email' }),
+    /data-subject and data-subject-content cannot both be set/
+  );
+});
+
+test('FYShuffle.observe uses obfuscated mailto parameters on intersection', async () => {
+  const IntersectionObserver = createFakeIntersectionObserver();
+  const context = await loadBrowserContext({ IntersectionObserver });
+  const key = 123456;
+  const element = new FakeElement('span', {
+    className: 'email',
+    dataset: {
+      content: context.FYForward('hello@example.com', key),
+      subjectContent: context.FYForward('Observed subject', key),
+    },
+  });
+  context.document = new FakeDocument([element]);
+
+  context.FYShuffle.observe({ key, mailto: 'email' });
+  IntersectionObserver.instances[0].trigger([{ target: element, isIntersecting: true }]);
+
+  assert.equal(
+    context.document.root.children[0].href,
+    'mailto:hello@example.com?subject=Observed%20subject'
+  );
+});
+
 test('FYShuffle.apply processes text targets using explicit selectors', async () => {
   const context = await loadBrowserContext();
   const key = 42;
