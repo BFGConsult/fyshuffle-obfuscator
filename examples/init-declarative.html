@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FYShuffle declarative init example</title>
+  <script src="../dist/FYShuffle-dev.js"></script>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      line-height: 1.5;
+      margin: 32px auto;
+      max-width: 840px;
+      padding: 0 20px;
+    }
+
+    .spacer {
+      min-height: 90vh;
+    }
+
+    .example {
+      border: 1px solid #d1d5db;
+      margin: 16px 0;
+      padding: 16px;
+    }
+
+    button {
+      font: inherit;
+      margin-right: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>FYShuffle declarative init</h1>
+  <p>
+    These elements opt in with <code>data-fyshuffle</code> and carry their own
+    <code>data-key</code>. The page calls <code>FYShuffle.init()</code>, so
+    transformations happen when each element enters the viewport.
+  </p>
+
+  <p>
+    <button id="force-apply" type="button">Force apply</button>
+    <button id="disconnect" type="button">Disconnect observer</button>
+  </p>
+
+  <div class="spacer">
+    Scroll down to trigger the observed transformations, or use force apply.
+  </div>
+
+  <section class="example">
+    <h2>Mailto</h2>
+    <span
+      data-fyshuffle="mailto"
+      data-key="123456"
+      data-content="bG0A2jGsbXa9hs5XbZhBZSV"
+      data-subject-content="bG8yGsGjbmRFRgVXdYpUaGV"
+    >
+      Protected contact
+    </span>
+  </section>
+
+  <section class="example">
+    <h2>Text</h2>
+    <span
+      data-fyshuffle="text"
+      data-key="123456"
+      data-content="kVJVxIBBRdhzZZpcNHhXll0HchEGVIdghaGGIZGmLmZnkvy5ytZWG0"
+    >
+      Protected text
+    </span>
+  </section>
+
+  <section class="example">
+    <h2>Scramble</h2>
+    <span
+      data-fyshuffle="scramble"
+      data-key="123456"
+      data-content="visible@example.com"
+    >
+      visible@example.com
+    </span>
+  </section>
+
+  <script>
+    const controller = FYShuffle.init({
+      rootMargin: '0px',
+      threshold: 0,
+      fallbackText: 'Protected content unavailable',
+    });
+
+    document.getElementById('force-apply').addEventListener('click', function () {
+      controller.apply();
+    });
+
+    document.getElementById('disconnect').addEventListener('click', function () {
+      controller.disconnect();
+    });
+  </script>
+</body>
+</html>
