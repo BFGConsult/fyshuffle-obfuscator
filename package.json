@@ -23,7 +23,8 @@
     "test": "node --test",
     "tsgen": "tsc -p tsconfig.build.json",
     "types": "dts-bundle-generator --project tsconfig.dts.json -o dist/FYShuffle.d.ts ts/FYShuffle.module.d.ts",
-    "build": "node scripts/build.js && npm run tsgen && npm run types"
+    "build": "node scripts/build.js && npm run tsgen && npm run types",
+    "build:release": "node scripts/build.js --release && npm run tsgen && npm run types"
   },
   "devDependencies": {
     "@types/node": "^20.8.10",

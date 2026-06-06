@@ -14,6 +14,7 @@
  * - Minifies browser build using Terser (dist/FYShuffle.min.js)
  * - Supports CLI flags:
  *     --target=<name>   Build only a specific target (browser, node, esm)
+ *     --release         Build package.json version artifacts even before the tag exists
  *     -v / --verbose    Show stripped import/export lines during build
  *
  * Usage:
@@ -78,6 +79,7 @@ const args = process.argv.slice(2);
 const targetArg = args.find((arg) => arg.startsWith('--target='));
 const onlyTarget = targetArg ? targetArg.split('=')[1] : null;
 const isVerbose = args.includes('-v') || args.includes('--verbose');
+const isReleaseOverride = args.includes('--release');
 
 async function getTagsAtHead() {
   try {
@@ -91,6 +93,10 @@ async function getTagsAtHead() {
 }
 
 async function resolveBuildVersion(version) {
+  if (isReleaseOverride) {
+    return version;
+  }
+
   const tagsAtHead = await getTagsAtHead();
   const releaseTags = new Set([version, `v${version}`]);
 
