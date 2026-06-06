@@ -61,11 +61,13 @@ If you use FYShuffle:
 <div class="email" data-content="obfuscatedBase64String"></div>
 
 <script>
-  mailtoClass('email', 123456); // Decodes and replaces with a <a href="mailto:...">
+  FYShuffle.apply({ key: 123456, mailto: 'email' }); // Decodes and replaces with a <a href="mailto:...">
 </script>
 ```
 
-Other utilities include `scrambleClass()` and `unscrambleClass()` for general-purpose content.
+Other modes include `text` for decoded plain text and `scramble` for encoding visible content.
+Legacy helpers such as `mailtoClass()`, `scrambleClass()`, and `unscrambleClass()` still work,
+but they are deprecated in favor of `FYShuffle.apply()`.
 
 ---
 

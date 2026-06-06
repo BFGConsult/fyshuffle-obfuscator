@@ -8,5 +8,4 @@
 - Consider declarative browser auto-initialization, where elements opt in with `data-fyshuffle` attributes and the browser bundle can process them without manual helper calls.
 - Explore whether browser DOM helpers should support attribute-based targeting in addition to, or instead of, class-based targeting.
 - Improve universal design and accessibility behavior for browser usage, including clearer fallback patterns for no-JavaScript, screen readers, and assistive technologies.
-- Consider adding an `apply({...})` config/object-based browser entrypoint for immediate batch DOM processing, instead of requiring several separate class-oriented helper calls.
 - Add an `observe({...})` visibility-triggered DOM transformation API so obfuscated content is only decoded when it is near or inside the viewport, raising the cost for browser automation and Playwright-style scraping.
