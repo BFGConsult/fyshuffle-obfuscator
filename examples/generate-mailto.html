@@ -95,15 +95,19 @@
     <button type="submit">Generate</button>
   </form>
 
-  <h2>HTML</h2>
-  <pre id="output"></pre>
+  <h2>Inline fallback HTML</h2>
+  <pre id="inline-output"></pre>
+
+  <h2>Explicit fallback HTML</h2>
+  <pre id="explicit-output"></pre>
 
   <h2>Decoded compact payload</h2>
   <pre id="synthetic-output"></pre>
 
   <script>
     const form = document.getElementById('generator');
-    const output = document.getElementById('output');
+    const inlineOutput = document.getElementById('inline-output');
+    const explicitOutput = document.getElementById('explicit-output');
     const syntheticOutput = document.getElementById('synthetic-output');
 
     function escapeHtml(value) {
@@ -120,7 +124,8 @@
       const mode = data.get('mode');
       const attrs = [['class', data.get('className') || 'fyshuffle-mailto']];
       const payload = { to: data.get('to') };
-      const fallbackText = data.get('fallbackText');
+      const visibleText = data.get('text') || 'Protected contact';
+      const fallbackText = data.get('fallbackText') || visibleText;
 
       for (const field of ['cc', 'bcc', 'subject', 'body']) {
         const value = data.get(field);
@@ -140,14 +145,14 @@
           }
         }
       }
-      if (fallbackText) {
-        attrs.push(['data-fallback-text', fallbackText]);
-      }
-
       const attrText = attrs
         .map(([name, value]) => `${name}="${escapeHtml(value)}"`)
         .join(' ');
-      output.textContent = `<span ${attrText}>${escapeHtml(data.get('text') || 'Protected contact')}</span>`;
+      const explicitAttrText = [...attrs, ['data-fallback-text', fallbackText]]
+        .map(([name, value]) => `${name}="${escapeHtml(value)}"`)
+        .join(' ');
+      inlineOutput.textContent = `<span ${attrText}>${escapeHtml(fallbackText)}</span>`;
+      explicitOutput.textContent = `<span ${explicitAttrText}>${escapeHtml(visibleText)}</span>`;
       syntheticOutput.textContent = JSON.stringify(payload, null, 2);
     }
 
