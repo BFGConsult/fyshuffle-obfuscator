@@ -42,13 +42,14 @@ This asymmetry is enough to meaningfully reduce spam and scraping in many real-w
 
 ## Accessibility Considerations
 
-This is not a best-practice approach to accessibility. Screen readers, text-only browsers, and users with JavaScript disabled will not see the unscrambled content.
+FYShuffle is progressive enhancement, not full accessibility coverage. Screen readers, text-only browsers, and users with JavaScript disabled will not see the unscrambled content until JavaScript has transformed it.
 
 If you use FYShuffle:
 
 - Limit its use to cases where obfuscation is necessary
-- Provide alternate access where appropriate (e.g., contact forms)
-- Consider fallback content or progressive enhancement
+- Provide alternate access for critical contact paths, such as contact forms
+- Use fallback text that describes the limitation or alternate route without revealing protected content
+- Avoid putting real protected values in `aria-label`, `title`, `noscript`, hidden content, or fallback text
 
 ---
 
@@ -111,9 +112,10 @@ Use `FYShuffle.observe()` to delay DOM transformations until matching elements b
 </script>
 ```
 
-If `IntersectionObserver` is unavailable, `observe()` replaces matching elements with fallback
-text instead of decoding protected content. The default fallback is `Protected content unavailable`;
-override it with `fallbackText`.
+If `IntersectionObserver` is unavailable, `observe()` replaces matching elements with plain
+fallback text instead of decoding protected content. The default fallback is
+`Protected content unavailable`; override it globally with `fallbackText` or per element with
+`data-fallback-text`.
 
 Declarative markup can opt in with `data-fyshuffle` and a per-element `data-key`:
 
@@ -122,8 +124,9 @@ Declarative markup can opt in with `data-fyshuffle` and a per-element `data-key`
   data-fyshuffle="mailto"
   data-key="123456"
   data-content="obfuscatedTo"
+  data-fallback-text="Use the contact form below"
 >
-  Protected contact
+  Email address appears when this block enters the viewport.
 </span>
 
 <script>

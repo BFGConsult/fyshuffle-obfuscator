@@ -358,6 +358,42 @@ test('FYShuffle.init fallback replaces declarative targets when IntersectionObse
   assert.deepEqual(context.document.root.children, ['Contact unavailable']);
 });
 
+test('FYShuffle.init fallback prefers per-element fallback text', async () => {
+  const context = await loadBrowserContext();
+  const key = 123456;
+  const element = new FakeElement('span', {
+    dataset: {
+      fyshuffle: 'mailto',
+      key: String(key),
+      content: context.FYForward('hello@example.com', key),
+      fallbackText: 'Use the contact form below',
+    },
+  });
+  context.document = new FakeDocument([element]);
+
+  context.FYShuffle.init({ fallbackText: 'Global fallback' });
+
+  assert.deepEqual(context.document.root.children, ['Use the contact form below']);
+});
+
+test('FYShuffle.init fallback inserts plain text', async () => {
+  const context = await loadBrowserContext();
+  const key = 123456;
+  const element = new FakeElement('span', {
+    dataset: {
+      fyshuffle: 'text',
+      key: String(key),
+      content: context.FYForward('Hidden text', key),
+      fallbackText: '<strong>Use the contact form</strong>',
+    },
+  });
+  context.document = new FakeDocument([element]);
+
+  context.FYShuffle.init();
+
+  assert.deepEqual(context.document.root.children, ['<strong>Use the contact form</strong>']);
+});
+
 test('FYShuffle.init rejects invalid declarative markup', async () => {
   const context = await loadBrowserContext();
   const key = 123456;
@@ -593,6 +629,27 @@ test('FYShuffle.observe fallbackText overrides default fallback', async () => {
   });
 
   assert.deepEqual(context.document.root.children, ['Contact information goes here']);
+});
+
+test('FYShuffle.observe fallback prefers per-element fallback text', async () => {
+  const context = await loadBrowserContext();
+  const key = 123456;
+  const element = new FakeElement('span', {
+    className: 'email',
+    dataset: {
+      content: context.FYForward('hello@example.com', key),
+      fallbackText: 'Use the contact form below',
+    },
+  });
+  context.document = new FakeDocument([element]);
+
+  context.FYShuffle.observe({
+    key,
+    mailto: 'email',
+    fallbackText: 'Global fallback',
+  });
+
+  assert.deepEqual(context.document.root.children, ['Use the contact form below']);
 });
 
 test('FYShuffle.apply processes mailto targets using simple class names', async () => {

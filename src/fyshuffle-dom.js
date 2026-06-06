@@ -34,6 +34,11 @@ function replaceWithText(element, text) {
     element.parentNode.removeChild(element);
 }
 
+function replaceWithPlainText(element, text) {
+    element.parentNode.insertBefore(String(text), element);
+    element.parentNode.removeChild(element);
+}
+
 const transformByMode = {
     mailto: transformMailtoElement,
     text: transformTextElement,
@@ -229,9 +234,16 @@ function collectDeclarativeTargets() {
 function replaceTargetsWithFallback(targets, fallbackText) {
     targets.forEach(function (target) {
         if (target.element.parentNode) {
-            replaceWithText(target.element, fallbackText);
+            replaceWithPlainText(target.element, getFallbackText(target.element, fallbackText));
         }
     });
+}
+
+function getFallbackText(element, fallbackText) {
+    if ('fallbackText' in element.dataset) {
+        return element.dataset.fallbackText;
+    }
+    return fallbackText;
 }
 
 function applyTargets(targets) {

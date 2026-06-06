@@ -55,6 +55,23 @@ test('CLI mailto supports class and escaped visible text', async () => {
   assert.match(stdout, />&lt;Contact &amp; support&gt;<\/span>/);
 });
 
+test('CLI mailto supports escaped fallback text', async () => {
+  const { stdout } = await runCli([
+    'mailto',
+    '--key',
+    '123456',
+    '--to',
+    'hello@example.com',
+    '--text',
+    'Protected contact',
+    '--fallback-text',
+    '<Use contact form>',
+  ]);
+
+  assert.match(stdout, /data-fallback-text="&lt;Use contact form&gt;"/);
+  assert.match(stdout, />Protected contact<\/span>/);
+});
+
 test('CLI mailto compact mode emits a single data field', async () => {
   const { stdout } = await runCli([
     'mailto',
@@ -75,6 +92,26 @@ test('CLI mailto compact mode emits a single data field', async () => {
   assert.doesNotMatch(stdout, /data-cc-content=/);
   assert.doesNotMatch(stdout, /Hello there/);
   assert.doesNotMatch(stdout, /cc@example\.com/);
+});
+
+test('CLI mailto compact mode supports fallback text without changing visible text', async () => {
+  const { stdout } = await runCli([
+    'mailto',
+    '--key',
+    '123456',
+    '--to',
+    'hello@example.com',
+    '--text',
+    'Visible placeholder',
+    '--fallback-text',
+    'Use the contact form below',
+    '--mode',
+    'compact',
+  ]);
+
+  assert.match(stdout, /^<span class="fyshuffle-mailto" data-content="[^"]+"/);
+  assert.match(stdout, /data-fallback-text="Use the contact form below"/);
+  assert.match(stdout, />Visible placeholder<\/span>/);
 });
 
 test('CLI mailto rejects invalid modes', async () => {

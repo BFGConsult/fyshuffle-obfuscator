@@ -77,6 +77,10 @@
       Visible fallback text
       <input name="text" type="text" value="Protected contact">
     </label>
+    <label>
+      Observer fallback text
+      <input name="fallbackText" type="text" placeholder="Use the contact form below">
+    </label>
     <fieldset>
       <legend>Mode</legend>
       <label>
@@ -116,6 +120,7 @@
       const mode = data.get('mode');
       const attrs = [['class', data.get('className') || 'fyshuffle-mailto']];
       const payload = { to: data.get('to') };
+      const fallbackText = data.get('fallbackText');
 
       for (const field of ['cc', 'bcc', 'subject', 'body']) {
         const value = data.get(field);
@@ -134,6 +139,9 @@
             attrs.push([`data-${field}-content`, FYShuffle.FYForward(value, key)]);
           }
         }
+      }
+      if (fallbackText) {
+        attrs.push(['data-fallback-text', fallbackText]);
       }
 
       const attrText = attrs

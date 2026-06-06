@@ -10,7 +10,7 @@ function usage() {
     'Usage:',
     '  fyshuffle encode --key <number> --text <value>',
     '  fyshuffle decode --key <number> --text <value>',
-    '  fyshuffle mailto --key <number> --to <email> [--cc <list>] [--bcc <list>] [--subject <text>] [--body <text>] [--class <name>] [--text <fallback>] [--mode full|compact]',
+    '  fyshuffle mailto --key <number> --to <email> [--cc <list>] [--bcc <list>] [--subject <text>] [--body <text>] [--class <name>] [--text <placeholder>] [--fallback-text <fallback>] [--mode full|compact]',
   ].join('\n');
 }
 
@@ -96,6 +96,10 @@ function mailtoSnippet(args) {
         attrs.push([`data-${field}-content`, FYForward(args[field], key)]);
       }
     }
+  }
+
+  if (args['fallback-text'] !== undefined) {
+    attrs.push(['data-fallback-text', args['fallback-text']]);
   }
 
   const attrText = attrs
