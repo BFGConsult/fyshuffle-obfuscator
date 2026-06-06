@@ -169,6 +169,9 @@ class FakeDocument {
   }
 
   matches(element, selector) {
+    if (selector === '[data-fyshuffle]') {
+      return 'fyshuffle' in element.dataset;
+    }
     if (selector.startsWith('.')) {
       return element.className.split(/\s+/).includes(selector.slice(1));
     }
@@ -186,6 +189,7 @@ test('browser namespace exposes FYShuffle.apply and core helpers', async () => {
     'FYForward',
     'apply',
     'genPerm',
+    'init',
     'mailtoClass',
     'mtoClass',
     'nextRand',
@@ -207,6 +211,220 @@ test('browser build exposes deprecated DOM helpers as legacy globals', async () 
   for (const name of ['mtoClass', 'mailtoClass', 'unscrambleClass', 'scrambleClass']) {
     assert.equal(context[name], context.FYShuffle[name]);
   }
+});
+
+test('FYShuffle.init processes declarative targets immediately', async () => {
+  const context = await loadBrowserContext();
+  const key = 123456;
+  const mail = new FakeElement('span', {
+    dataset: {
+      fyshuffle: 'mailto',
+      key: String(key),
+      content: context.FYForward('hello@example.com', key),
+      subjectContent: context.FYForward('Hello there', key),
+    },
+  });
+  const text = new FakeElement('span', {
+    dataset: {
+      fyshuffle: 'text',
+      key: String(key),
+      content: context.FYForward('Hidden text', key),
+    },
+  });
+  const scramble = new FakeElement('span', {
+    dataset: {
+      fyshuffle: 'scramble',
+      key: String(key),
+      content: 'visible@example.com',
+    },
+  });
+  context.document = new FakeDocument([mail, text, scramble]);
+
+  const controller = context.FYShuffle.init({ immediate: true });
+
+  assert.equal(typeof controller.disconnect, 'function');
+  assert.equal(typeof controller.apply, 'function');
+  assert.equal(context.document.root.children[0].tagName, 'A');
+  assert.equal(
+    context.document.root.children[0].href,
+    'mailto:hello@example.com?subject=Hello%20there'
+  );
+  assert.equal(context.document.root.children[1], 'Hidden text');
+  assert.equal(context.document.root.children[2], context.FYForward('visible@example.com', key));
+});
+
+test('FYShuffle.init defaults to observing declarative targets', async () => {
+  const IntersectionObserver = createFakeIntersectionObserver();
+  const context = await loadBrowserContext({ IntersectionObserver });
+  const key = 123456;
+  const element = new FakeElement('span', {
+    dataset: {
+      fyshuffle: 'mailto',
+      key: String(key),
+      content: context.FYForward('hello@example.com', key),
+    },
+  });
+  context.document = new FakeDocument([element]);
+
+  const controller = context.FYShuffle.init();
+
+  const observer = IntersectionObserver.instances[0];
+  assert.equal(typeof controller.disconnect, 'function');
+  assert.equal(typeof controller.apply, 'function');
+  assert.deepEqual(observer.observed, [element]);
+  assert.deepEqual(context.document.root.children, [element]);
+
+  observer.trigger([{ target: element, isIntersecting: true }]);
+
+  assert.equal(context.document.root.children[0].tagName, 'A');
+  assert.equal(context.document.root.children[0].href, 'mailto:hello@example.com');
+  assert.deepEqual(observer.unobserved, [element]);
+});
+
+test('FYShuffle.init passes observer options and fallback text through', async () => {
+  const IntersectionObserver = createFakeIntersectionObserver();
+  const root = {};
+  const context = await loadBrowserContext({ IntersectionObserver });
+  const key = 123456;
+  const element = new FakeElement('span', {
+    dataset: {
+      fyshuffle: 'text',
+      key: String(key),
+      content: context.FYForward('Hidden text', key),
+    },
+  });
+  context.document = new FakeDocument([element]);
+
+  context.FYShuffle.init({
+    immediate: false,
+    root,
+    rootMargin: '50px',
+    threshold: 0.5,
+    fallbackText: 'Hidden fallback',
+  });
+
+  const observer = IntersectionObserver.instances[0];
+  assert.equal(observer.options.root, root);
+  assert.equal(observer.options.rootMargin, '50px');
+  assert.equal(observer.options.threshold, 0.5);
+});
+
+test('FYShuffle.init controller can force apply or disconnect observed declarative targets', async () => {
+  const IntersectionObserver = createFakeIntersectionObserver();
+  const context = await loadBrowserContext({ IntersectionObserver });
+  const key = 123456;
+  const first = new FakeElement('span', {
+    dataset: {
+      fyshuffle: 'text',
+      key: String(key),
+      content: context.FYForward('First', key),
+    },
+  });
+  const second = new FakeElement('span', {
+    dataset: {
+      fyshuffle: 'text',
+      key: String(key),
+      content: context.FYForward('Second', key),
+    },
+  });
+  context.document = new FakeDocument([first, second]);
+
+  const controller = context.FYShuffle.init({ immediate: false });
+  const observer = IntersectionObserver.instances[0];
+
+  controller.apply();
+
+  assert.deepEqual(context.document.root.children, ['First', 'Second']);
+  assert.deepEqual(observer.unobserved, [first, second]);
+
+  controller.disconnect();
+  assert.equal(observer.disconnected, true);
+});
+
+test('FYShuffle.init fallback replaces declarative targets when IntersectionObserver is unavailable', async () => {
+  const context = await loadBrowserContext();
+  const key = 123456;
+  const element = new FakeElement('span', {
+    dataset: {
+      fyshuffle: 'mailto',
+      key: String(key),
+      content: context.FYForward('hello@example.com', key),
+    },
+  });
+  context.document = new FakeDocument([element]);
+
+  context.FYShuffle.init({ fallbackText: 'Contact unavailable' });
+
+  assert.deepEqual(context.document.root.children, ['Contact unavailable']);
+});
+
+test('FYShuffle.init rejects invalid declarative markup', async () => {
+  const context = await loadBrowserContext();
+  const key = 123456;
+
+  assert.throws(
+    () => context.FYShuffle.init(null),
+    /FYShuffle\.init requires a config object/
+  );
+  assert.throws(
+    () => context.FYShuffle.init({ immediate: 'true' }),
+    /FYShuffle\.init immediate must be boolean/
+  );
+
+  context.document = new FakeDocument([
+    new FakeElement('span', {
+      dataset: {
+        fyshuffle: 'text',
+        content: context.FYForward('Hidden text', key),
+      },
+    }),
+  ]);
+  assert.throws(
+    () => context.FYShuffle.init({ immediate: true }),
+    /data-key is required/
+  );
+
+  context.document = new FakeDocument([
+    new FakeElement('span', {
+      dataset: {
+        fyshuffle: 'text',
+        key: 'not-a-number',
+        content: context.FYForward('Hidden text', key),
+      },
+    }),
+  ]);
+  assert.throws(
+    () => context.FYShuffle.init({ immediate: true }),
+    /data-key must be numeric/
+  );
+
+  context.document = new FakeDocument([
+    new FakeElement('span', {
+      dataset: {
+        fyshuffle: 'text',
+        key: '',
+        content: context.FYForward('Hidden text', key),
+      },
+    }),
+  ]);
+  assert.throws(
+    () => context.FYShuffle.init({ immediate: true }),
+    /data-key must be numeric/
+  );
+
+  context.document = new FakeDocument([
+    new FakeElement('span', {
+      dataset: {
+        fyshuffle: 'unknown',
+        key: String(key),
+        content: context.FYForward('Hidden text', key),
+      },
+    }),
+  ]);
+  assert.throws(
+    () => context.FYShuffle.init({ immediate: true }),
+    /unknown data-fyshuffle value "unknown"/
+  );
 });
 
 test('browser FYForward and FYBackward round-trip representative Unicode text', async () => {

@@ -115,12 +115,31 @@ If `IntersectionObserver` is unavailable, `observe()` replaces matching elements
 text instead of decoding protected content. The default fallback is `Protected content unavailable`;
 override it with `fallbackText`.
 
+Declarative markup can opt in with `data-fyshuffle` and a per-element `data-key`:
+
+```html
+<span
+  data-fyshuffle="mailto"
+  data-key="123456"
+  data-content="obfuscatedTo"
+>
+  Protected contact
+</span>
+
+<script>
+  FYShuffle.init(); // Defaults to visibility-gated observe behavior.
+</script>
+```
+
+Use `data-fyshuffle="mailto"`, `data-fyshuffle="text"`, or `data-fyshuffle="scramble"`.
+Call `FYShuffle.init({ immediate: true })` to transform declarative elements immediately.
+
 ### Browser API Contract
 
 For 1.0, the supported browser API is the `window.FYShuffle` namespace:
 
 - Core helpers: `FYForward`, `FYBackward`, `genPerm`, `nextRand`
-- DOM entrypoints: `apply(config)`, `observe(config)`
+- DOM entrypoints: `apply(config)`, `observe(config)`, `init(config)`
 - Deprecated compatibility helpers: `mtoClass`, `mailtoClass`, `unscrambleClass`, `scrambleClass`
 
 `FYForward` and `FYBackward` are the primary core API. `genPerm` and `nextRand` remain public

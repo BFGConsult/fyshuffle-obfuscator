@@ -5,6 +5,7 @@ import test from 'node:test';
 const expectedExports = ['FYBackward', 'FYForward', 'genPerm', 'nextRand'];
 const browserOnlyExports = [
   'apply',
+  'init',
   'observe',
   'mailtoClass',
   'mtoClass',

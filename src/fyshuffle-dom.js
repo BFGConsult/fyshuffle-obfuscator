@@ -25,10 +25,20 @@ function selectTarget(target) {
     return document.querySelectorAll(normalizeTarget(target));
 }
 
+function selectDeclarativeTargets() {
+    return document.querySelectorAll('[data-fyshuffle]');
+}
+
 function replaceWithText(element, text) {
     element.insertAdjacentHTML('beforebegin', text);
     element.parentNode.removeChild(element);
 }
+
+const transformByMode = {
+    mailto: transformMailtoElement,
+    text: transformTextElement,
+    scramble: transformScrambleElement,
+};
 
 function transformMailtoElement(element, key) {
     const decodedContent = FYBackward(element.dataset['content'], key);
@@ -150,7 +160,7 @@ function applyConfig(config) {
     }
 }
 
-function collectObservedTargets(config, key) {
+function collectConfigTargets(config, key) {
     const seen = new Set();
     const targets = [];
     const addTargets = function (target, transform) {
@@ -173,6 +183,49 @@ function collectObservedTargets(config, key) {
     return targets;
 }
 
+function getDeclarativeTransform(element) {
+    const mode = element.dataset.fyshuffle;
+    const transform = transformByMode[mode];
+
+    if (!transform) {
+        throw new Error(`FYShuffle: unknown data-fyshuffle value "${mode}"`);
+    }
+
+    return transform;
+}
+
+function getDeclarativeKey(element) {
+    if (!('key' in element.dataset)) {
+        throw new TypeError('FYShuffle: data-key is required for declarative elements');
+    }
+
+    const rawKey = element.dataset.key;
+    if (rawKey.trim() === '') {
+        throw new TypeError('FYShuffle: data-key must be numeric');
+    }
+
+    const key = Number(rawKey);
+    if (!Number.isFinite(key)) {
+        throw new TypeError('FYShuffle: data-key must be numeric');
+    }
+
+    return key;
+}
+
+function collectDeclarativeTargets() {
+    const targets = [];
+
+    Array.prototype.forEach.call(selectDeclarativeTargets(), function (element) {
+        targets.push({
+            element,
+            transform: getDeclarativeTransform(element),
+            key: getDeclarativeKey(element),
+        });
+    });
+
+    return targets;
+}
+
 function replaceTargetsWithFallback(targets, fallbackText) {
     targets.forEach(function (target) {
         if (target.element.parentNode) {
@@ -181,9 +234,15 @@ function replaceTargetsWithFallback(targets, fallbackText) {
     });
 }
 
-function observeConfig(config) {
-    const key = validateConfig(config, 'observe');
-    const targets = collectObservedTargets(config, key);
+function applyTargets(targets) {
+    targets.forEach(function (target) {
+        if (target.element.parentNode) {
+            target.transform(target.element, target.key);
+        }
+    });
+}
+
+function observeTargets(targets, config) {
     const pending = new Set(targets);
     const observerOptions = {
         root: config.root || null,
@@ -248,6 +307,39 @@ function observeConfig(config) {
     };
 }
 
+function observeConfig(config) {
+    const key = validateConfig(config, 'observe');
+    return observeTargets(collectConfigTargets(config, key), config);
+}
+
+function validateInitConfig(config) {
+    if (config === undefined) {
+        return {};
+    }
+    if (!config || typeof config !== 'object') {
+        throw new TypeError('FYShuffle.init requires a config object');
+    }
+    if ('immediate' in config && typeof config.immediate !== 'boolean') {
+        throw new TypeError('FYShuffle.init immediate must be boolean');
+    }
+    return config;
+}
+
+function initConfig(config) {
+    config = validateInitConfig(config);
+    const targets = collectDeclarativeTargets();
+
+    if (config.immediate === true) {
+        applyTargets(targets);
+        return {
+            disconnect() {},
+            apply() {},
+        };
+    }
+
+    return observeTargets(targets, config);
+}
+
 /**
  * Decodes a base64-encoded class name and calls mailtoClass with the result.
  *
@@ -304,6 +396,7 @@ globalThis.FYShuffle = {
     nextRand,
     apply: applyConfig,
     observe: observeConfig,
+    init: initConfig,
     mtoClass,
     mailtoClass,
     unscrambleClass,
