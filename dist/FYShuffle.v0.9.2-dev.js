@@ -28,22 +28,44 @@ function genPerm(n, key) {
 }
 
 /**
- * Encodes a string to base64 using the browser's `btoa` function.
+ * Encodes a string to base64 using UTF-8 bytes and the browser's `btoa` function.
  *
  * @param {string} str - The input string to encode.
  * @returns {string} - The base64-encoded output.
  */
 function base64Encode(str) {
-  return window.btoa(str);
+  const bytes = new TextEncoder().encode(str);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return window.btoa(binary);
 }
 /**
- * Decodes a base64-encoded string using the browser's `atob` function.
+ * Decodes a base64-encoded UTF-8 string using the browser's `atob` function.
  *
  * @param {string} str - The base64 string to decode.
  * @returns {string} - The decoded plain string.
  */
 function base64Decode(str) {
-  return window.atob(str);
+  const padded = padBase64(str);
+  const binary = window.atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    return binary;
+  }
+}
+function padBase64(str) {
+  const missing = str.length % 4;
+  if (missing === 0) {
+    return str;
+  }
+  return str + '='.repeat(4 - missing);
 }
 
 // @ts-ignore: TS2792 - base64.js is resolved during bundle
@@ -104,16 +126,29 @@ function normalizeTarget(target) {
 function selectTarget(target) {
   return document.querySelectorAll(normalizeTarget(target));
 }
+function selectDeclarativeTargets() {
+  return document.querySelectorAll('[data-fyshuffle]');
+}
 function replaceWithText(element, text) {
   element.insertAdjacentHTML('beforebegin', text);
   element.parentNode.removeChild(element);
 }
+const transformByMode = {
+  mailto: transformMailtoElement,
+  text: transformTextElement,
+  scramble: transformScrambleElement,
+};
 function transformMailtoElement(element, key) {
-  const target = FYBackward(element.dataset['content'], key);
+  const decodedContent = FYBackward(element.dataset['content'], key);
+  const compact = parseCompactMailto(decodedContent);
+  const target = compact ? compact.to : decodedContent;
   const anchor = document.createElement('a');
   const fields = [];
   const esc = encodeURIComponent;
   function getMailtoField(field) {
+    if (compact && field in compact) {
+      return compact[field];
+    }
     const encodedField = `${field}Content`;
     const hasCleartext = field in element.dataset;
     const hasEncoded = encodedField in element.dataset;
@@ -153,6 +188,27 @@ function transformMailtoElement(element, key) {
   anchor.text = target;
   element.parentNode.replaceChild(anchor, element);
 }
+function parseCompactMailto(value) {
+  let payload;
+  try {
+    payload = JSON.parse(value);
+  } catch {
+    return null;
+  }
+  if (
+    !payload ||
+    typeof payload !== 'object' ||
+    typeof payload.to !== 'string'
+  ) {
+    return null;
+  }
+  for (const field of ['cc', 'bcc', 'subject', 'body']) {
+    if (field in payload && typeof payload[field] !== 'string') {
+      return null;
+    }
+  }
+  return payload;
+}
 function transformTextElement(element, key) {
   replaceWithText(element, FYBackward(element.dataset['content'], key));
 }
@@ -188,7 +244,7 @@ function applyConfig(config) {
     applyTarget(config.scramble, key, transformScrambleElement);
   }
 }
-function collectObservedTargets(config, key) {
+function collectConfigTargets(config, key) {
   const seen = new Set();
   const targets = [];
   const addTargets = function (target, transform) {
@@ -208,6 +264,41 @@ function collectObservedTargets(config, key) {
   addTargets(config.scramble, transformScrambleElement);
   return targets;
 }
+function getDeclarativeTransform(element) {
+  const mode = element.dataset.fyshuffle;
+  const transform = transformByMode[mode];
+  if (!transform) {
+    throw new Error(`FYShuffle: unknown data-fyshuffle value "${mode}"`);
+  }
+  return transform;
+}
+function getDeclarativeKey(element) {
+  if (!('key' in element.dataset)) {
+    throw new TypeError(
+      'FYShuffle: data-key is required for declarative elements',
+    );
+  }
+  const rawKey = element.dataset.key;
+  if (rawKey.trim() === '') {
+    throw new TypeError('FYShuffle: data-key must be numeric');
+  }
+  const key = Number(rawKey);
+  if (!Number.isFinite(key)) {
+    throw new TypeError('FYShuffle: data-key must be numeric');
+  }
+  return key;
+}
+function collectDeclarativeTargets() {
+  const targets = [];
+  Array.prototype.forEach.call(selectDeclarativeTargets(), function (element) {
+    targets.push({
+      element,
+      transform: getDeclarativeTransform(element),
+      key: getDeclarativeKey(element),
+    });
+  });
+  return targets;
+}
 function replaceTargetsWithFallback(targets, fallbackText) {
   targets.forEach(function (target) {
     if (target.element.parentNode) {
@@ -215,9 +306,14 @@ function replaceTargetsWithFallback(targets, fallbackText) {
     }
   });
 }
-function observeConfig(config) {
-  const key = validateConfig(config, 'observe');
-  const targets = collectObservedTargets(config, key);
+function applyTargets(targets) {
+  targets.forEach(function (target) {
+    if (target.element.parentNode) {
+      target.transform(target.element, target.key);
+    }
+  });
+}
+function observeTargets(targets, config) {
   const pending = new Set(targets);
   const observerOptions = {
     root: config.root || null,
@@ -273,6 +369,34 @@ function observeConfig(config) {
       });
     },
   };
+}
+function observeConfig(config) {
+  const key = validateConfig(config, 'observe');
+  return observeTargets(collectConfigTargets(config, key), config);
+}
+function validateInitConfig(config) {
+  if (config === undefined) {
+    return {};
+  }
+  if (!config || typeof config !== 'object') {
+    throw new TypeError('FYShuffle.init requires a config object');
+  }
+  if ('immediate' in config && typeof config.immediate !== 'boolean') {
+    throw new TypeError('FYShuffle.init immediate must be boolean');
+  }
+  return config;
+}
+function initConfig(config) {
+  config = validateInitConfig(config);
+  const targets = collectDeclarativeTargets();
+  if (config.immediate === true) {
+    applyTargets(targets);
+    return {
+      disconnect() {},
+      apply() {},
+    };
+  }
+  return observeTargets(targets, config);
 }
 /**
  * Decodes a base64-encoded class name and calls mailtoClass with the result.
@@ -334,6 +458,7 @@ globalThis.FYShuffle = {
   nextRand,
   apply: applyConfig,
   observe: observeConfig,
+  init: initConfig,
   mtoClass,
   mailtoClass,
   unscrambleClass,
