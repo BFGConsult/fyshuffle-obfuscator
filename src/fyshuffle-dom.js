@@ -13,7 +13,7 @@ function warnDeprecated(name, replacement) {
 
 function normalizeTarget(target) {
     if (typeof target !== 'string') {
-        throw new TypeError('FYShuffle.apply target values must be strings');
+        throw new TypeError('FYShuffle target values must be strings');
     }
     if (/^[A-Za-z0-9_-]+$/.test(target)) {
         return '.' + target;
@@ -25,83 +25,182 @@ function selectTarget(target) {
     return document.querySelectorAll(normalizeTarget(target));
 }
 
-function applyMailto(target, key) {
-    /** @type {NodeListOf<HTMLElement>} */
-    const elements = selectTarget(target);
+function replaceWithText(element, text) {
+    element.insertAdjacentHTML('beforebegin', text);
+    element.parentNode.removeChild(element);
+}
 
-    Array.prototype.forEach.call(elements, function (element) {
-        const target = FYBackward(element.dataset['content'], key);
-        const anchor = document.createElement("a");
-        const fields = [];
-        const esc = encodeURIComponent;
+function transformMailtoElement(element, key) {
+    const target = FYBackward(element.dataset['content'], key);
+    const anchor = document.createElement("a");
+    const fields = [];
+    const esc = encodeURIComponent;
 
-        for (const field of ['cc', 'bcc', 'subject', 'body']) {
-            if (field in element.dataset) {
-                if (field[field.length - 1] === 'c') {
-                    for (const mail of element.dataset[field].split(',')) {
-                        fields.push(`${field}=${esc(mail)}`);
-                    }
-                } else {
-                    fields.push(`${field}=${esc(element.dataset[field])}`);
+    for (const field of ['cc', 'bcc', 'subject', 'body']) {
+        if (field in element.dataset) {
+            if (field[field.length - 1] === 'c') {
+                for (const mail of element.dataset[field].split(',')) {
+                    fields.push(`${field}=${esc(mail)}`);
                 }
+            } else {
+                fields.push(`${field}=${esc(element.dataset[field])}`);
             }
         }
+    }
 
-        let query = '';
-        if (fields.length > 0) {
-            query = '?' + fields.shift();
-            for (const f of fields) {
-                query += '&' + f;
-            }
+    let query = '';
+    if (fields.length > 0) {
+        query = '?' + fields.shift();
+        for (const f of fields) {
+            query += '&' + f;
         }
+    }
 
-        anchor.href = 'mailto:' + target + query;
-        anchor.text = target;
-        element.parentNode.replaceChild(anchor, element);
-    });
+    anchor.href = 'mailto:' + target + query;
+    anchor.text = target;
+    element.parentNode.replaceChild(anchor, element);
 }
 
-function applyText(target, key) {
+function transformTextElement(element, key) {
+    replaceWithText(element, FYBackward(element.dataset['content'], key));
+}
+
+function transformScrambleElement(element, key) {
+    replaceWithText(element, FYForward(element.dataset['content'], key));
+}
+
+function applyTarget(target, key, transform) {
     /** @type {NodeListOf<HTMLElement>} */
     const elements = selectTarget(target);
 
     Array.prototype.forEach.call(elements, function (element) {
-        const target = FYBackward(element.dataset['content'], key);
-        element.insertAdjacentHTML('beforebegin', target);
-        element.parentNode.removeChild(element);
+        transform(element, key);
     });
 }
 
-function applyScramble(target, key) {
-    /** @type {NodeListOf<HTMLElement>} */
-    const elements = selectTarget(target);
-
-    Array.prototype.forEach.call(elements, function (element) {
-        const target = FYForward(element.dataset['content'], key);
-        element.insertAdjacentHTML('beforebegin', target);
-        element.parentNode.removeChild(element);
-    });
-}
-
-function applyConfig(config) {
+function validateConfig(config, apiName) {
     if (!config || typeof config !== 'object') {
-        throw new TypeError('FYShuffle.apply requires a config object');
+        throw new TypeError(`FYShuffle.${apiName} requires a config object`);
     }
 
     const key = config.key;
     if (typeof key !== 'number' || !Number.isFinite(key)) {
-        throw new TypeError('FYShuffle.apply requires a numeric key');
+        throw new TypeError(`FYShuffle.${apiName} requires a numeric key`);
     }
 
+    return key;
+}
+
+function applyConfig(config) {
+    const key = validateConfig(config, 'apply');
+
     if (config.mailto !== undefined) {
-        applyMailto(config.mailto, key);
+        applyTarget(config.mailto, key, transformMailtoElement);
     }
     if (config.text !== undefined) {
-        applyText(config.text, key);
+        applyTarget(config.text, key, transformTextElement);
     }
     if (config.scramble !== undefined) {
-        applyScramble(config.scramble, key);
+        applyTarget(config.scramble, key, transformScrambleElement);
     }
+}
+
+function collectObservedTargets(config, key) {
+    const seen = new Set();
+    const targets = [];
+    const addTargets = function (target, transform) {
+        if (target === undefined) {
+            return;
+        }
+        Array.prototype.forEach.call(selectTarget(target), function (element) {
+            if (seen.has(element)) {
+                return;
+            }
+            seen.add(element);
+            targets.push({ element, transform, key });
+        });
+    };
+
+    addTargets(config.mailto, transformMailtoElement);
+    addTargets(config.text, transformTextElement);
+    addTargets(config.scramble, transformScrambleElement);
+
+    return targets;
+}
+
+function replaceTargetsWithFallback(targets, fallbackText) {
+    targets.forEach(function (target) {
+        if (target.element.parentNode) {
+            replaceWithText(target.element, fallbackText);
+        }
+    });
+}
+
+function observeConfig(config) {
+    const key = validateConfig(config, 'observe');
+    const targets = collectObservedTargets(config, key);
+    const pending = new Set(targets);
+    const observerOptions = {
+        root: config.root || null,
+        rootMargin: config.rootMargin || '0px',
+        threshold: config.threshold === undefined ? 0 : config.threshold,
+    };
+
+    function transformTarget(target, observer) {
+        if (!pending.has(target)) {
+            return;
+        }
+        pending.delete(target);
+        if (observer) {
+            observer.unobserve(target.element);
+        }
+        if (target.element.parentNode) {
+            target.transform(target.element, target.key);
+        }
+    }
+
+    if (typeof IntersectionObserver !== 'function') {
+        const fallbackText = config.fallbackText === undefined
+            ? 'Protected content unavailable'
+            : config.fallbackText;
+        replaceTargetsWithFallback(
+            targets,
+            fallbackText
+        );
+        return {
+            disconnect() {},
+            apply() {},
+        };
+    }
+
+    const observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+            if (!entry.isIntersecting) {
+                return;
+            }
+            targets.forEach(function (target) {
+                if (target.element === entry.target) {
+                    transformTarget(target, observer);
+                }
+            });
+        });
+    }, observerOptions);
+
+    targets.forEach(function (target) {
+        observer.observe(target.element);
+    });
+
+    return {
+        disconnect() {
+            observer.disconnect();
+            pending.clear();
+        },
+        apply() {
+            Array.from(pending).forEach(function (target) {
+                transformTarget(target, observer);
+            });
+        },
+    };
 }
 
 /**
@@ -159,6 +258,7 @@ globalThis.FYShuffle = {
     genPerm,
     nextRand,
     apply: applyConfig,
+    observe: observeConfig,
     mtoClass,
     mailtoClass,
     unscrambleClass,

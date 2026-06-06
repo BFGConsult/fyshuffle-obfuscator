@@ -69,6 +69,18 @@ Other modes include `text` for decoded plain text and `scramble` for encoding vi
 Legacy helpers such as `mailtoClass()`, `scrambleClass()`, and `unscrambleClass()` still work,
 but they are deprecated in favor of `FYShuffle.apply()`.
 
+Use `FYShuffle.observe()` to delay DOM transformations until matching elements become visible:
+
+```html
+<script>
+  FYShuffle.observe({ key: 123456, mailto: 'email' });
+</script>
+```
+
+If `IntersectionObserver` is unavailable, `observe()` replaces matching elements with fallback
+text instead of decoding protected content. The default fallback is `Protected content unavailable`;
+override it with `fallbackText`.
+
 ---
 
 ### In Node.js

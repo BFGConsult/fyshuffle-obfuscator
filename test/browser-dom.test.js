@@ -34,7 +34,7 @@ function stripModuleSyntax(code) {
     .join('\n');
 }
 
-async function loadBrowserContext() {
+async function loadBrowserContext(options = {}) {
   const warnings = [];
   const context = {
     console: {
@@ -50,6 +50,7 @@ async function loadBrowserContext() {
       return Buffer.from(value, 'binary').toString('base64');
     },
     warnings,
+    ...options,
   };
   context.globalThis = context;
   context.window = context;
@@ -62,6 +63,42 @@ async function loadBrowserContext() {
 
   vm.runInNewContext(code, context);
   return context;
+}
+
+function createFakeIntersectionObserver() {
+  const instances = [];
+
+  class FakeIntersectionObserver {
+    constructor(callback, options) {
+      this.callback = callback;
+      this.options = options;
+      this.observed = [];
+      this.unobserved = [];
+      this.disconnected = false;
+      instances.push(this);
+    }
+
+    observe(element) {
+      this.observed.push(element);
+    }
+
+    unobserve(element) {
+      this.unobserved.push(element);
+      this.observed = this.observed.filter((observed) => observed !== element);
+    }
+
+    disconnect() {
+      this.disconnected = true;
+      this.observed = [];
+    }
+
+    trigger(entries) {
+      this.callback(entries);
+    }
+  }
+
+  FakeIntersectionObserver.instances = instances;
+  return FakeIntersectionObserver;
 }
 
 class FakeParent {
@@ -149,6 +186,7 @@ test('browser namespace exposes FYShuffle.apply and core helpers', async () => {
     'genPerm',
     'nextRand',
     'apply',
+    'observe',
     'mtoClass',
     'mailtoClass',
     'unscrambleClass',
@@ -156,6 +194,129 @@ test('browser namespace exposes FYShuffle.apply and core helpers', async () => {
   ]) {
     assert.equal(typeof context.FYShuffle[name], 'function', `${name} should be available`);
   }
+});
+
+test('FYShuffle.observe waits for intersecting mailto targets', async () => {
+  const IntersectionObserver = createFakeIntersectionObserver();
+  const context = await loadBrowserContext({ IntersectionObserver });
+  const key = 123456;
+  const element = new FakeElement('span', {
+    className: 'email',
+    dataset: { content: context.FYForward('hello@example.com', key) },
+  });
+  context.document = new FakeDocument([element]);
+
+  context.FYShuffle.observe({ key, mailto: 'email' });
+
+  const observer = IntersectionObserver.instances[0];
+  assert.equal(observer.options.root, null);
+  assert.equal(observer.options.rootMargin, '0px');
+  assert.equal(observer.options.threshold, 0);
+  assert.deepEqual(context.document.root.children, [element]);
+
+  observer.trigger([{ target: element, isIntersecting: false }]);
+  assert.deepEqual(context.document.root.children, [element]);
+
+  observer.trigger([{ target: element, isIntersecting: true }]);
+  const anchor = context.document.root.children[0];
+  assert.equal(anchor.tagName, 'A');
+  assert.equal(anchor.href, 'mailto:hello@example.com');
+  assert.deepEqual(observer.unobserved, [element]);
+});
+
+test('FYShuffle.observe transforms text and scramble targets on intersection', async () => {
+  const IntersectionObserver = createFakeIntersectionObserver();
+  const context = await loadBrowserContext({ IntersectionObserver });
+  const key = 42;
+  const text = new FakeElement('span', {
+    id: 'secret',
+    dataset: { content: context.FYForward('Hidden text', key) },
+  });
+  const scramble = new FakeElement('span', {
+    className: 'encode',
+    dataset: { content: 'hello@example.com' },
+  });
+  context.document = new FakeDocument([text, scramble]);
+
+  context.FYShuffle.observe({ key, text: '#secret', scramble: 'encode', rootMargin: '25px' });
+
+  const observer = IntersectionObserver.instances[0];
+  assert.equal(observer.options.rootMargin, '25px');
+  observer.trigger([{ target: text, isIntersecting: true }]);
+  assert.equal(context.document.root.children[0], 'Hidden text');
+  assert.equal(context.document.root.children[1], scramble);
+
+  observer.trigger([{ target: scramble, isIntersecting: true }]);
+  assert.equal(context.document.root.children[1], context.FYForward('hello@example.com', key));
+});
+
+test('FYShuffle.observe controller can disconnect or force apply', async () => {
+  const IntersectionObserver = createFakeIntersectionObserver();
+  const context = await loadBrowserContext({ IntersectionObserver });
+  const key = 7;
+  const first = new FakeElement('span', {
+    className: 'secret',
+    dataset: { content: context.FYForward('First', key) },
+  });
+  const second = new FakeElement('span', {
+    className: 'secret',
+    dataset: { content: context.FYForward('Second', key) },
+  });
+  context.document = new FakeDocument([first, second]);
+
+  const controller = context.FYShuffle.observe({ key, text: 'secret' });
+  const observer = IntersectionObserver.instances[0];
+
+  controller.apply();
+  assert.deepEqual(context.document.root.children, ['First', 'Second']);
+  assert.deepEqual(observer.unobserved, [first, second]);
+
+  controller.disconnect();
+  assert.equal(observer.disconnected, true);
+});
+
+test('FYShuffle.observe fallback replaces targets with default text', async () => {
+  const context = await loadBrowserContext();
+  const key = 123456;
+  const mail = new FakeElement('span', {
+    className: 'email',
+    dataset: { content: context.FYForward('hello@example.com', key) },
+  });
+  const text = new FakeElement('span', {
+    className: 'secret',
+    dataset: { content: context.FYForward('Hidden text', key) },
+  });
+  context.document = new FakeDocument([mail, text]);
+
+  const controller = context.FYShuffle.observe({ key, mailto: 'email', text: 'secret' });
+
+  assert.deepEqual(context.document.root.children, [
+    'Protected content unavailable',
+    'Protected content unavailable',
+  ]);
+  controller.apply();
+  assert.deepEqual(context.document.root.children, [
+    'Protected content unavailable',
+    'Protected content unavailable',
+  ]);
+});
+
+test('FYShuffle.observe fallbackText overrides default fallback', async () => {
+  const context = await loadBrowserContext();
+  const key = 123456;
+  const element = new FakeElement('span', {
+    className: 'email',
+    dataset: { content: context.FYForward('hello@example.com', key) },
+  });
+  context.document = new FakeDocument([element]);
+
+  context.FYShuffle.observe({
+    key,
+    mailto: 'email',
+    fallbackText: 'Contact information goes here',
+  });
+
+  assert.deepEqual(context.document.root.children, ['Contact information goes here']);
 });
 
 test('FYShuffle.apply processes mailto targets using simple class names', async () => {
