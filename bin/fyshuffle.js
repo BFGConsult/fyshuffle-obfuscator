@@ -10,7 +10,7 @@ function usage() {
     'Usage:',
     '  fyshuffle encode --key <number> --text <value>',
     '  fyshuffle decode --key <number> --text <value>',
-    '  fyshuffle mailto --key <number> --to <email> [--cc <list>] [--bcc <list>] [--subject <text>] [--body <text>] [--class <name>] [--text <fallback>]',
+    '  fyshuffle mailto --key <number> --to <email> [--cc <list>] [--bcc <list>] [--subject <text>] [--body <text>] [--class <name>] [--text <fallback>] [--mode full|compact]',
   ].join('\n');
 }
 
@@ -72,14 +72,29 @@ function mailtoSnippet(args) {
   const key = parseKey(args);
   const className = args.class || 'fyshuffle-mailto';
   const text = args.text || 'Protected contact';
-  const attrs = [
-    ['class', className],
-    ['data-content', FYForward(requireValue(args, 'to'), key)],
-  ];
+  const mode = args.mode || 'full';
+  const to = requireValue(args, 'to');
+  const attrs = [['class', className]];
 
-  for (const field of ['cc', 'bcc', 'subject', 'body']) {
-    if (args[field] !== undefined) {
-      attrs.push([`data-${field}-content`, FYForward(args[field], key)]);
+  if (mode !== 'full' && mode !== 'compact') {
+    throw new Error('--mode must be full or compact');
+  }
+
+  if (mode === 'compact') {
+    const payload = { to };
+    for (const field of ['cc', 'bcc', 'subject', 'body']) {
+      if (args[field] !== undefined) {
+        payload[field] = args[field];
+      }
+    }
+    attrs.push(['data-content', FYForward(JSON.stringify(payload), key)]);
+  } else {
+    attrs.push(['data-content', FYForward(to, key)]);
+
+    for (const field of ['cc', 'bcc', 'subject', 'body']) {
+      if (args[field] !== undefined) {
+        attrs.push([`data-${field}-content`, FYForward(args[field], key)]);
+      }
     }
   }
 

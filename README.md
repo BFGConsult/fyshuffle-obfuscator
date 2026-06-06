@@ -82,6 +82,23 @@ Mailto parameters can also be obfuscated with `data-*-content` attributes:
 </span>
 ```
 
+For more compact markup, put a single obfuscated JSON payload in `data-content`:
+
+```html
+<span class="fyshuffle-mailto" data-content="obfuscatedMailtoPayload">
+  Protected contact
+</span>
+```
+
+The decoded payload has this shape:
+
+```json
+{
+  "to": "hello@example.com",
+  "subject": "Hello"
+}
+```
+
 Do not mix cleartext and obfuscated forms for the same field. For example,
 `data-subject` and `data-subject-content` on the same element is an error.
 
@@ -119,10 +136,12 @@ console.log(original); // hello@example.com
 fyshuffle encode --key 123456 --text hello@example.com
 fyshuffle decode --key 123456 --text obfuscatedValue
 fyshuffle mailto --key 123456 --to hello@example.com --subject "Hello"
+fyshuffle mailto --key 123456 --to hello@example.com --subject "Hello" --mode compact
 ```
 
 The `mailto` command prints an HTML snippet with obfuscated `data-*` attributes.
-The browser generator in `examples/generate-mailto.html` provides the same workflow in a page.
+Use `--mode compact` to emit a snippet with only `class` and `data-content`.
+The browser generator in `examples/generate-mailto.html` provides both modes in a page.
 
 ---
 

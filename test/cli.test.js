@@ -55,6 +55,48 @@ test('CLI mailto supports class and escaped visible text', async () => {
   assert.match(stdout, />&lt;Contact &amp; support&gt;<\/span>/);
 });
 
+test('CLI mailto compact mode emits a single data field', async () => {
+  const { stdout } = await runCli([
+    'mailto',
+    '--key',
+    '123456',
+    '--to',
+    'hello@example.com',
+    '--subject',
+    'Hello there',
+    '--cc',
+    'cc@example.com,cc2@example.com',
+    '--mode',
+    'compact',
+  ]);
+
+  assert.match(stdout, /^<span class="fyshuffle-mailto" data-content="[^"]+">/);
+  assert.doesNotMatch(stdout, /data-subject-content=/);
+  assert.doesNotMatch(stdout, /data-cc-content=/);
+  assert.doesNotMatch(stdout, /Hello there/);
+  assert.doesNotMatch(stdout, /cc@example\.com/);
+});
+
+test('CLI mailto rejects invalid modes', async () => {
+  await assert.rejects(
+    () =>
+      runCli([
+        'mailto',
+        '--key',
+        '123456',
+        '--to',
+        'hello@example.com',
+        '--mode',
+        'small',
+      ]),
+    (error) => {
+      assert.equal(error.code, 1);
+      assert.match(error.stderr, /--mode must be full or compact/);
+      return true;
+    }
+  );
+});
+
 test('CLI exits nonzero for missing required flags', async () => {
   await assert.rejects(
     () => runCli(['mailto', '--key', '123456']),

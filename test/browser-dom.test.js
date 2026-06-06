@@ -367,6 +367,33 @@ test('FYShuffle.apply decodes obfuscated mailto parameters', async () => {
   );
 });
 
+test('FYShuffle.apply decodes compact obfuscated mailto payloads', async () => {
+  const context = await loadBrowserContext();
+  const key = 123456;
+  const payload = {
+    to: 'hello@example.com',
+    cc: 'cc@example.com,cc2@example.com',
+    bcc: 'bcc@example.com',
+    subject: 'Hello there',
+    body: 'Body text',
+  };
+  const element = new FakeElement('span', {
+    className: 'email',
+    dataset: {
+      content: context.FYForward(JSON.stringify(payload), key),
+    },
+  });
+  context.document = new FakeDocument([element]);
+
+  context.FYShuffle.apply({ key, mailto: 'email' });
+
+  const anchor = context.document.root.children[0];
+  assert.equal(
+    anchor.href,
+    'mailto:hello@example.com?cc=cc%40example.com&cc=cc2%40example.com&bcc=bcc%40example.com&subject=Hello%20there&body=Body%20text'
+  );
+});
+
 test('FYShuffle.apply rejects cleartext and obfuscated mailto field conflicts', async () => {
   const context = await loadBrowserContext();
   const key = 123456;
@@ -395,6 +422,30 @@ test('FYShuffle.observe uses obfuscated mailto parameters on intersection', asyn
     dataset: {
       content: context.FYForward('hello@example.com', key),
       subjectContent: context.FYForward('Observed subject', key),
+    },
+  });
+  context.document = new FakeDocument([element]);
+
+  context.FYShuffle.observe({ key, mailto: 'email' });
+  IntersectionObserver.instances[0].trigger([{ target: element, isIntersecting: true }]);
+
+  assert.equal(
+    context.document.root.children[0].href,
+    'mailto:hello@example.com?subject=Observed%20subject'
+  );
+});
+
+test('FYShuffle.observe uses compact obfuscated mailto payloads on intersection', async () => {
+  const IntersectionObserver = createFakeIntersectionObserver();
+  const context = await loadBrowserContext({ IntersectionObserver });
+  const key = 123456;
+  const element = new FakeElement('span', {
+    className: 'email',
+    dataset: {
+      content: context.FYForward(
+        JSON.stringify({ to: 'hello@example.com', subject: 'Observed subject' }),
+        key
+      ),
     },
   });
   context.document = new FakeDocument([element]);

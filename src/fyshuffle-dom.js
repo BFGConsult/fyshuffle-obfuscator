@@ -31,12 +31,18 @@ function replaceWithText(element, text) {
 }
 
 function transformMailtoElement(element, key) {
-    const target = FYBackward(element.dataset['content'], key);
+    const decodedContent = FYBackward(element.dataset['content'], key);
+    const compact = parseCompactMailto(decodedContent);
+    const target = compact ? compact.to : decodedContent;
     const anchor = document.createElement("a");
     const fields = [];
     const esc = encodeURIComponent;
 
     function getMailtoField(field) {
+        if (compact && field in compact) {
+            return compact[field];
+        }
+
         const encodedField = `${field}Content`;
         const hasCleartext = field in element.dataset;
         const hasEncoded = encodedField in element.dataset;
@@ -77,6 +83,27 @@ function transformMailtoElement(element, key) {
     anchor.href = 'mailto:' + target + query;
     anchor.text = target;
     element.parentNode.replaceChild(anchor, element);
+}
+
+function parseCompactMailto(value) {
+    let payload;
+    try {
+        payload = JSON.parse(value);
+    } catch {
+        return null;
+    }
+
+    if (!payload || typeof payload !== 'object' || typeof payload.to !== 'string') {
+        return null;
+    }
+
+    for (const field of ['cc', 'bcc', 'subject', 'body']) {
+        if (field in payload && typeof payload[field] !== 'string') {
+            return null;
+        }
+    }
+
+    return payload;
 }
 
 function transformTextElement(element, key) {

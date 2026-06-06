@@ -77,15 +77,30 @@
       Visible fallback text
       <input name="text" type="text" value="Protected contact">
     </label>
+    <fieldset>
+      <legend>Mode</legend>
+      <label>
+        <input name="mode" type="radio" value="full" checked>
+        Full
+      </label>
+      <label>
+        <input name="mode" type="radio" value="compact">
+        Compact
+      </label>
+    </fieldset>
     <button type="submit">Generate</button>
   </form>
 
   <h2>HTML</h2>
   <pre id="output"></pre>
 
+  <h2>Decoded compact payload</h2>
+  <pre id="synthetic-output"></pre>
+
   <script>
     const form = document.getElementById('generator');
     const output = document.getElementById('output');
+    const syntheticOutput = document.getElementById('synthetic-output');
 
     function escapeHtml(value) {
       return String(value)
@@ -98,15 +113,26 @@
     function generate() {
       const data = new FormData(form);
       const key = Number(data.get('key'));
-      const attrs = [
-        ['class', data.get('className') || 'fyshuffle-mailto'],
-        ['data-content', FYShuffle.FYForward(data.get('to'), key)],
-      ];
+      const mode = data.get('mode');
+      const attrs = [['class', data.get('className') || 'fyshuffle-mailto']];
+      const payload = { to: data.get('to') };
 
       for (const field of ['cc', 'bcc', 'subject', 'body']) {
         const value = data.get(field);
         if (value) {
-          attrs.push([`data-${field}-content`, FYShuffle.FYForward(value, key)]);
+          payload[field] = value;
+        }
+      }
+
+      if (mode === 'compact') {
+        attrs.push(['data-content', FYShuffle.FYForward(JSON.stringify(payload), key)]);
+      } else {
+        attrs.push(['data-content', FYShuffle.FYForward(data.get('to'), key)]);
+        for (const field of ['cc', 'bcc', 'subject', 'body']) {
+          const value = data.get(field);
+          if (value) {
+            attrs.push([`data-${field}-content`, FYShuffle.FYForward(value, key)]);
+          }
         }
       }
 
@@ -114,6 +140,7 @@
         .map(([name, value]) => `${name}="${escapeHtml(value)}"`)
         .join(' ');
       output.textContent = `<span ${attrText}>${escapeHtml(data.get('text') || 'Protected contact')}</span>`;
+      syntheticOutput.textContent = JSON.stringify(payload, null, 2);
     }
 
     form.addEventListener('submit', function (event) {
