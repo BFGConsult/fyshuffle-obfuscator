@@ -181,21 +181,31 @@ class FakeDocument {
 
 test('browser namespace exposes FYShuffle.apply and core helpers', async () => {
   const context = await loadBrowserContext();
+  const expectedNamespace = [
+    'FYBackward',
+    'FYForward',
+    'apply',
+    'genPerm',
+    'mailtoClass',
+    'mtoClass',
+    'nextRand',
+    'observe',
+    'scrambleClass',
+    'unscrambleClass',
+  ];
 
   assert.equal(typeof context.FYShuffle, 'object');
-  for (const name of [
-    'FYForward',
-    'FYBackward',
-    'genPerm',
-    'nextRand',
-    'apply',
-    'observe',
-    'mtoClass',
-    'mailtoClass',
-    'unscrambleClass',
-    'scrambleClass',
-  ]) {
+  assert.deepEqual(Object.keys(context.FYShuffle).sort(), expectedNamespace);
+  for (const name of expectedNamespace) {
     assert.equal(typeof context.FYShuffle[name], 'function', `${name} should be available`);
+  }
+});
+
+test('browser build exposes deprecated DOM helpers as legacy globals', async () => {
+  const context = await loadBrowserContext();
+
+  for (const name of ['mtoClass', 'mailtoClass', 'unscrambleClass', 'scrambleClass']) {
+    assert.equal(context[name], context.FYShuffle[name]);
   }
 });
 

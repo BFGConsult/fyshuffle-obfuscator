@@ -12,9 +12,10 @@
 - No external dependencies
 - Distributed in multiple formats:
   - `FYShuffle.js`: browser-compatible UMD build
+  - `FYShuffle-dev.js`: development browser build for untagged builds
   - `FYShuffle.min.js`: minified UMD
   - `FYShuffle.module.js`: ES module for bundlers
-  - `FYShuffle.node.js`: CommonJS build for Node
+  - `FYShuffle.node.cjs`: CommonJS build for Node
 
 ---
 
@@ -114,6 +115,24 @@ If `IntersectionObserver` is unavailable, `observe()` replaces matching elements
 text instead of decoding protected content. The default fallback is `Protected content unavailable`;
 override it with `fallbackText`.
 
+### Browser API Contract
+
+For 1.0, the supported browser API is the `window.FYShuffle` namespace:
+
+- Core helpers: `FYForward`, `FYBackward`, `genPerm`, `nextRand`
+- DOM entrypoints: `apply(config)`, `observe(config)`
+- Deprecated compatibility helpers: `mtoClass`, `mailtoClass`, `unscrambleClass`, `scrambleClass`
+
+`FYForward` and `FYBackward` are the primary core API. `genPerm` and `nextRand` remain public
+low-level helpers for compatibility and deterministic testing.
+
+The deprecated helpers are also available as legacy global functions in the browser build.
+They warn once per page load and forward to `FYShuffle.apply()`.
+
+Package imports remain core-only. The ESM and CommonJS package entries intentionally export
+only `FYForward`, `FYBackward`, `genPerm`, and `nextRand`; browser DOM helpers are not package
+exports and are not part of the package declaration file.
+
 ---
 
 ### In Node.js
@@ -175,10 +194,12 @@ The following files will be created in the `dist/` directory:
 
 ```
 dist/
-├── FYShuffle.js         // UMD (for browsers)
-├── FYShuffle.min.js     // Minified UMD
-├── FYShuffle.module.js  // ESM (for bundlers)
-├── FYShuffle.node.js    // CommonJS (for Node)
+├── FYShuffle.js          // Stable browser build
+├── FYShuffle-dev.js      // Development browser build
+├── FYShuffle.min.js      // Minified browser build for release builds
+├── FYShuffle.module.js   // ESM for bundlers
+├── FYShuffle.node.cjs    // CommonJS for Node
+└── manifest.json         // Build artifact manifest
 ```
 
 Use `npm run build -v` for verbose logging.
@@ -205,9 +226,11 @@ The demo lets you:
 .
 ├── dist/                # Final build artifacts
 │   ├── FYShuffle.js
+│   ├── FYShuffle-dev.js
 │   ├── FYShuffle.min.js
 │   ├── FYShuffle.module.js
-│   └── FYShuffle.node.js
+│   ├── FYShuffle.node.cjs
+│   └── manifest.json
 ├── index.html           # Demo/test page
 ├── package.json         # Project metadata and build config
 ├── package-lock.json

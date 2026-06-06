@@ -3,11 +3,22 @@ import { createRequire } from 'node:module';
 import test from 'node:test';
 
 const expectedExports = ['FYBackward', 'FYForward', 'genPerm', 'nextRand'];
+const browserOnlyExports = [
+  'apply',
+  'observe',
+  'mailtoClass',
+  'mtoClass',
+  'scrambleClass',
+  'unscrambleClass',
+];
 
 function assertPublicExports(module) {
   assert.deepEqual(Object.keys(module).sort(), expectedExports);
   for (const name of expectedExports) {
     assert.equal(typeof module[name], 'function', `${name} should be a function`);
+  }
+  for (const name of browserOnlyExports) {
+    assert.equal(name in module, false, `${name} should remain browser-only`);
   }
 }
 
