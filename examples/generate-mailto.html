@@ -95,9 +95,7 @@
         .replace(/>/g, '&gt;');
     }
 
-    function generate(event) {
-      event.preventDefault();
-
+    function generate() {
       const data = new FormData(form);
       const key = Number(data.get('key'));
       const attrs = [
@@ -118,8 +116,12 @@
       output.textContent = `<span ${attrText}>${escapeHtml(data.get('text') || 'Protected contact')}</span>`;
     }
 
-    form.addEventListener('submit', generate);
-    form.dispatchEvent(new Event('submit'));
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+      generate();
+    });
+    form.addEventListener('input', generate);
+    generate();
   </script>
 </body>
 </html>
