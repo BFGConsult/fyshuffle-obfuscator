@@ -42,6 +42,16 @@ test('package and lockfile root versions match', async () => {
   assert.equal(lock.version, pkg.version);
 });
 
+test('package identity is distinct from runtime and CLI names', async () => {
+  const pkg = JSON.parse(await readText('package.json'));
+  const lock = JSON.parse(await readText('package-lock.json'));
+
+  assert.equal(pkg.name, 'fyshuffle-obfuscator');
+  assert.equal(lock.name, 'fyshuffle-obfuscator');
+  assert.equal(lock.packages[''].name, 'fyshuffle-obfuscator');
+  assert.deepEqual(pkg.bin, { fyshuffle: './bin/fyshuffle.js' });
+});
+
 test('package includes release build script', async () => {
   const pkg = JSON.parse(await readText('package.json'));
 

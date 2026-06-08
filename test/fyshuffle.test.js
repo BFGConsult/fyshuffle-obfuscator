@@ -30,14 +30,14 @@ test('ESM bundle exposes the public API', async () => {
 });
 
 test('package import exposes the public API', async () => {
-  const fyshuffle = await import('fyshuffle');
+  const fyshuffle = await import('fyshuffle-obfuscator');
 
   assertPublicExports(fyshuffle);
 });
 
 test('CommonJS require exposes the public API', () => {
   const require = createRequire(import.meta.url);
-  const fyshuffle = require('fyshuffle');
+  const fyshuffle = require('fyshuffle-obfuscator');
 
   assertPublicExports(fyshuffle);
 });

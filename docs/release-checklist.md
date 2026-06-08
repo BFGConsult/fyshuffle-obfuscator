@@ -54,8 +54,8 @@ npm --cache /private/tmp/fyshuffle-npm-cache pack --dry-run
 
 ## Post-publish Checks
 
-- Install the published package in a temporary project.
-- Verify ESM import.
-- Verify CommonJS require.
+- Install `fyshuffle-obfuscator` in a temporary project.
+- Verify ESM import from `fyshuffle-obfuscator`.
+- Verify CommonJS require of `fyshuffle-obfuscator`.
 - Verify the `fyshuffle` CLI command.
 - Verify browser artifact availability in the package.

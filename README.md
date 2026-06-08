@@ -211,7 +211,16 @@ The browser generator in `examples/generate-mailto.html` provides both modes in 
 If published to npm:
 
 ```bash
-npm install FYShuffle
+npm install fyshuffle-obfuscator
+```
+
+Package and runtime names are intentionally separate:
+
+```text
+Install package: fyshuffle-obfuscator
+Browser global: window.FYShuffle
+JS API namespace: FYShuffle
+CLI command: fyshuffle
 ```
 
 If working from source:
