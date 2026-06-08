@@ -276,13 +276,7 @@ function getDeclarativeTransform(element) {
   }
   return transform;
 }
-function getDeclarativeKey(element) {
-  if (!('key' in element.dataset)) {
-    throw new TypeError(
-      'FYShuffle: data-key is required for declarative elements',
-    );
-  }
-  const rawKey = element.dataset.key;
+function parseDeclarativeKey(rawKey) {
   if (rawKey.trim() === '') {
     throw new TypeError('FYShuffle: data-key must be numeric');
   }
@@ -292,6 +286,17 @@ function getDeclarativeKey(element) {
   }
   return key;
 }
+function getDeclarativeKey(element, defaultKey) {
+  if (!('key' in element.dataset)) {
+    if (defaultKey !== undefined) {
+      return defaultKey;
+    }
+    throw new TypeError(
+      'FYShuffle: data-key is required for declarative elements',
+    );
+  }
+  return parseDeclarativeKey(element.dataset.key);
+}
 function validateDeclarativeContent(element) {
   if (!('content' in element.dataset)) {
     throw new TypeError(
@@ -299,14 +304,14 @@ function validateDeclarativeContent(element) {
     );
   }
 }
-function collectDeclarativeTargets() {
+function collectDeclarativeTargets(defaultKey) {
   const targets = [];
   Array.prototype.forEach.call(selectDeclarativeTargets(), function (element) {
     validateDeclarativeContent(element);
     targets.push({
       element,
       transform: getDeclarativeTransform(element),
-      key: getDeclarativeKey(element),
+      key: getDeclarativeKey(element, defaultKey),
     });
   });
   return targets;
@@ -405,11 +410,13 @@ function validateInitConfig(config) {
   if ('immediate' in config && typeof config.immediate !== 'boolean') {
     throw new TypeError('FYShuffle.init immediate must be boolean');
   }
+  if ('keyUrl' in config && typeof config.keyUrl !== 'string') {
+    throw new TypeError('FYShuffle.init keyUrl must be a string');
+  }
   return config;
 }
-function initConfig(config) {
-  config = validateInitConfig(config);
-  const targets = collectDeclarativeTargets();
+function startInit(config, defaultKey) {
+  const targets = collectDeclarativeTargets(defaultKey);
   if (config.immediate === true) {
     applyTargets(targets);
     return {
@@ -418,6 +425,36 @@ function initConfig(config) {
     };
   }
   return observeTargets(targets, config);
+}
+async function fetchInitKey(keyUrl) {
+  if (typeof fetch !== 'function') {
+    throw new TypeError('FYShuffle.init keyUrl requires fetch');
+  }
+  const response = await fetch(keyUrl);
+  if (!response || response.ok !== true) {
+    throw new Error('FYShuffle.init keyUrl request failed');
+  }
+  const payload = await response.json();
+  if (
+    !payload ||
+    typeof payload !== 'object' ||
+    typeof payload.key !== 'number' ||
+    !Number.isFinite(payload.key)
+  ) {
+    throw new TypeError(
+      'FYShuffle.init keyUrl response must contain a numeric key',
+    );
+  }
+  return payload.key;
+}
+function initConfig(config) {
+  config = validateInitConfig(config);
+  if ('keyUrl' in config) {
+    return fetchInitKey(config.keyUrl).then(function (key) {
+      return startInit(config, key);
+    });
+  }
+  return startInit(config);
 }
 /**
  * Decodes a base64-encoded class name and calls mailtoClass with the result.
