@@ -17,15 +17,15 @@ export function FYForward(text: string, key: number): string;
  */
 export function FYBackward(enc: string, key: number): string;
 /**
+ * @param {number} X
+ * @returns {number}
+ */
+export function nextRand(X: number): number;
+/**
  * @param {number} n
  * @param {number} key
  * @returns {number[]}
  */
 export function genPerm(n: number, key: number): number[];
-/**
- * @param {number} X
- * @returns {number}
- */
-export function nextRand(X: number): number;
 
 export {};

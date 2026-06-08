@@ -133,6 +133,10 @@ function replaceWithText(element, text) {
   element.insertAdjacentHTML('beforebegin', text);
   element.parentNode.removeChild(element);
 }
+function replaceWithPlainText(element, text) {
+  element.parentNode.insertBefore(String(text), element);
+  element.parentNode.removeChild(element);
+}
 const transformByMode = {
   mailto: transformMailtoElement,
   text: transformTextElement,
@@ -288,9 +292,17 @@ function getDeclarativeKey(element) {
   }
   return key;
 }
+function validateDeclarativeContent(element) {
+  if (!('content' in element.dataset)) {
+    throw new TypeError(
+      'FYShuffle: data-content is required for declarative elements',
+    );
+  }
+}
 function collectDeclarativeTargets() {
   const targets = [];
   Array.prototype.forEach.call(selectDeclarativeTargets(), function (element) {
+    validateDeclarativeContent(element);
     targets.push({
       element,
       transform: getDeclarativeTransform(element),
@@ -302,9 +314,18 @@ function collectDeclarativeTargets() {
 function replaceTargetsWithFallback(targets, fallbackText) {
   targets.forEach(function (target) {
     if (target.element.parentNode) {
-      replaceWithText(target.element, fallbackText);
+      replaceWithPlainText(
+        target.element,
+        getFallbackText(target.element, fallbackText),
+      );
     }
   });
+}
+function getFallbackText(element, fallbackText) {
+  if ('fallbackText' in element.dataset) {
+    return element.dataset.fallbackText;
+  }
+  return fallbackText;
 }
 function applyTargets(targets) {
   targets.forEach(function (target) {
