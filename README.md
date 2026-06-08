@@ -135,7 +135,37 @@ Declarative markup can opt in with `data-fyshuffle` and a per-element `data-key`
 ```
 
 Use `data-fyshuffle="mailto"`, `data-fyshuffle="text"`, or `data-fyshuffle="scramble"`.
-Declarative elements must include `data-content` and `data-key`.
+Declarative elements must include `data-content`. By default, each declarative element must also
+include `data-key`.
+
+The key can also be loaded from the server:
+
+```html
+<span
+  data-fyshuffle="mailto"
+  data-content="obfuscatedTo"
+  data-fallback-text="Use the contact form below"
+>
+  Email address appears when this block enters the viewport.
+</span>
+
+<script>
+  const controller = await FYShuffle.init({
+    keyUrl: '/path/to/fyshuffle-key.json'
+  });
+</script>
+```
+
+The key URL must return JSON with a numeric `key` field:
+
+```json
+{ "key": 123456 }
+```
+
+When `keyUrl` is used, `FYShuffle.init()` returns a promise for the normal controller. Elements
+without `data-key` use the fetched key; elements with `data-key` override it individually. Loading
+the key from a URL avoids embedding it directly in markup, but clients that can fetch the URL can
+still read the key.
 
 `FYShuffle.init()` timing is explicit:
 

@@ -341,6 +341,177 @@ test('FYShuffle.init controller can force apply or disconnect observed declarati
   assert.equal(observer.disconnected, true);
 });
 
+test('FYShuffle.init with keyUrl transforms declarative targets immediately', async () => {
+  const key = 123456;
+  const context = await loadBrowserContext({
+    fetch(url) {
+      assert.equal(url, '/path/to/fyshuffle-key.json');
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ key }),
+      });
+    },
+  });
+  const mail = new FakeElement('span', {
+    dataset: {
+      fyshuffle: 'mailto',
+      content: context.FYForward('hello@example.com', key),
+    },
+  });
+  const text = new FakeElement('span', {
+    dataset: {
+      fyshuffle: 'text',
+      content: context.FYForward('Hidden text', key),
+    },
+  });
+  const scramble = new FakeElement('span', {
+    dataset: {
+      fyshuffle: 'scramble',
+      content: 'visible@example.com',
+    },
+  });
+  context.document = new FakeDocument([mail, text, scramble]);
+
+  const initResult = context.FYShuffle.init({
+    keyUrl: '/path/to/fyshuffle-key.json',
+    immediate: true,
+  });
+
+  assert.equal(typeof initResult.then, 'function');
+  const controller = await initResult;
+
+  assert.equal(typeof controller.disconnect, 'function');
+  assert.equal(typeof controller.apply, 'function');
+  assert.equal(context.document.root.children[0].tagName, 'A');
+  assert.equal(context.document.root.children[0].href, 'mailto:hello@example.com');
+  assert.equal(context.document.root.children[1], 'Hidden text');
+  assert.equal(context.document.root.children[2], context.FYForward('visible@example.com', key));
+});
+
+test('FYShuffle.init with keyUrl observes only after the key is fetched', async () => {
+  const IntersectionObserver = createFakeIntersectionObserver();
+  let resolveFetch;
+  const key = 123456;
+  const context = await loadBrowserContext({
+    IntersectionObserver,
+    fetch() {
+      return new Promise((resolve) => {
+        resolveFetch = resolve;
+      });
+    },
+  });
+  const element = new FakeElement('span', {
+    dataset: {
+      fyshuffle: 'text',
+      content: context.FYForward('Hidden text', key),
+    },
+  });
+  context.document = new FakeDocument([element]);
+
+  const initResult = context.FYShuffle.init({ keyUrl: '/path/to/fyshuffle-key.json' });
+
+  assert.equal(typeof initResult.then, 'function');
+  assert.deepEqual(IntersectionObserver.instances, []);
+  assert.deepEqual(context.document.root.children, [element]);
+
+  resolveFetch({
+    ok: true,
+    json: () => Promise.resolve({ key }),
+  });
+  const controller = await initResult;
+  const observer = IntersectionObserver.instances[0];
+
+  assert.equal(typeof controller.disconnect, 'function');
+  assert.deepEqual(observer.observed, [element]);
+  assert.deepEqual(context.document.root.children, [element]);
+
+  observer.trigger([{ target: element, isIntersecting: true }]);
+
+  assert.deepEqual(context.document.root.children, ['Hidden text']);
+  assert.deepEqual(observer.unobserved, [element]);
+});
+
+test('FYShuffle.init data-key overrides fetched key per element', async () => {
+  const remoteKey = 111111;
+  const elementKey = 222222;
+  const context = await loadBrowserContext({
+    fetch() {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ key: remoteKey }),
+      });
+    },
+  });
+  const remoteElement = new FakeElement('span', {
+    dataset: {
+      fyshuffle: 'text',
+      content: context.FYForward('Remote key text', remoteKey),
+    },
+  });
+  const overrideElement = new FakeElement('span', {
+    dataset: {
+      fyshuffle: 'text',
+      key: String(elementKey),
+      content: context.FYForward('Element key text', elementKey),
+    },
+  });
+  context.document = new FakeDocument([remoteElement, overrideElement]);
+
+  await context.FYShuffle.init({
+    keyUrl: '/path/to/fyshuffle-key.json',
+    immediate: true,
+  });
+
+  assert.deepEqual(context.document.root.children, ['Remote key text', 'Element key text']);
+});
+
+test('FYShuffle.init with keyUrl rejects invalid remote key responses', async () => {
+  for (const payload of [{}, { key: '123456' }]) {
+    const context = await loadBrowserContext({
+      fetch() {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(payload),
+        });
+      },
+    });
+    context.document = new FakeDocument([
+      new FakeElement('span', {
+        dataset: {
+          fyshuffle: 'text',
+          content: 'ignored',
+        },
+      }),
+    ]);
+
+    await assert.rejects(
+      () => context.FYShuffle.init({ keyUrl: '/path/to/fyshuffle-key.json' }),
+      /response must contain a numeric key/
+    );
+  }
+});
+
+test('FYShuffle.init with keyUrl rejects failed fetches', async () => {
+  const context = await loadBrowserContext({
+    fetch() {
+      return Promise.resolve({ ok: false, json: () => Promise.resolve({ key: 123456 }) });
+    },
+  });
+  context.document = new FakeDocument([
+    new FakeElement('span', {
+      dataset: {
+        fyshuffle: 'text',
+        content: 'ignored',
+      },
+    }),
+  ]);
+
+  await assert.rejects(
+    () => context.FYShuffle.init({ keyUrl: '/path/to/fyshuffle-key.json' }),
+    /keyUrl request failed/
+  );
+});
+
 test('FYShuffle.init fallback replaces declarative targets when IntersectionObserver is unavailable', async () => {
   const context = await loadBrowserContext();
   const key = 123456;
@@ -405,6 +576,10 @@ test('FYShuffle.init rejects invalid declarative markup', async () => {
   assert.throws(
     () => context.FYShuffle.init({ immediate: 'true' }),
     /FYShuffle\.init immediate must be boolean/
+  );
+  assert.throws(
+    () => context.FYShuffle.init({ keyUrl: 123456 }),
+    /FYShuffle\.init keyUrl must be a string/
   );
 
   context.document = new FakeDocument([
