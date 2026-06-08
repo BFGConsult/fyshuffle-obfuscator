@@ -34,7 +34,7 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import prettier from 'prettier';
 import * as terser from 'terser';
-import { resolveBuildVersion } from './build-version.js';
+import { resolveBuildVersion, resolveStableVersion } from './build-version.js';
 
 const __dirname = path.resolve();
 const distDir = path.join(__dirname, 'dist');
@@ -104,33 +104,18 @@ async function getAllTags() {
   }
 }
 
-async function resolveStableBrowserVersion(version, buildVersion) {
-  if (buildVersion === version) {
-    return version;
-  }
-
-  try {
-    const legacyBrowserPath = path.join(distDir, 'FYShuffle.js');
-    const legacyBrowser = await fs.readFile(legacyBrowserPath, 'utf8');
-    const match = legacyBrowser.match(/FYShuffle\.v([0-9]+\.[0-9]+\.[0-9]+)\.js/);
-
-    if (match) {
-      return match[1];
-    }
-  } catch {
-    // Fall back to the package version if the stable browser artifact is absent.
-  }
-
-  return version;
-}
-
+const allTags = await getAllTags();
 const buildVersion = resolveBuildVersion({
   packageVersion: pkg.version,
   releaseOverride: isReleaseOverride,
   tagsAtHead: await getTagsAtHead(),
-  allTags: await getAllTags(),
+  allTags,
 });
-const stableBrowserVersion = await resolveStableBrowserVersion(pkg.version, buildVersion);
+const stableBrowserVersion = resolveStableVersion({
+  packageVersion: pkg.version,
+  buildVersion,
+  allTags,
+});
 const isReleaseBuild = buildVersion === pkg.version;
 const browserLegacyFile = isReleaseBuild ? 'FYShuffle.js' : 'FYShuffle-dev.js';
 const staleDevArtifactPattern =
@@ -191,7 +176,7 @@ async function buildTarget(targetKey) {
     await fs.mkdir(distDir, { recursive: true });
 
     if (targetKey === 'browser') {
-      const legacyWarning = `console.warn('FYShuffle: You are using the unversioned ${browserLegacyFile}. For long-term stability, consider switching to a versioned file like FYShuffle.v${buildVersion}.js');\n\n`;
+      const legacyWarning = `console.warn('FYShuffle: You are using the unversioned ${browserLegacyFile}. For long-term stability, consider switching to a stable versioned file like FYShuffle.v${stableBrowserVersion}.js');\n\n`;
       const combinedWithWarning = legacyWarning + combined;
 
       const formattedLegacy = await prettier.format(combinedWithWarning, {

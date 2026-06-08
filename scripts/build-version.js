@@ -58,3 +58,11 @@ export function resolveBuildVersion({
 
   return `${incrementPatch(latestReleaseVersion(allTags, packageVersion))}-dev`;
 }
+
+export function resolveStableVersion({ packageVersion, buildVersion, allTags = [] }) {
+  if (buildVersion === packageVersion) {
+    return packageVersion;
+  }
+
+  return latestReleaseVersion(allTags, packageVersion);
+}

@@ -5,6 +5,7 @@ import {
   incrementPatch,
   latestReleaseVersion,
   resolveBuildVersion,
+  resolveStableVersion,
 } from '../scripts/build-version.js';
 
 test('incrementPatch increments only the micro version', () => {
@@ -43,6 +44,28 @@ test('builds at the matching release tag use the package version exactly', () =>
       packageVersion: '0.9.2',
       tagsAtHead: ['v0.9.2'],
       allTags: ['v0.9.2'],
+    }),
+    '0.9.2'
+  );
+});
+
+test('dev build stable recommendation uses the latest stable tag', () => {
+  assert.equal(
+    resolveStableVersion({
+      packageVersion: '0.9.2',
+      buildVersion: '0.9.3-dev',
+      allTags: ['v0.9.1', 'v0.9.2'],
+    }),
+    '0.9.2'
+  );
+});
+
+test('dev build stable recommendation falls back to package version without tags', () => {
+  assert.equal(
+    resolveStableVersion({
+      packageVersion: '0.9.2',
+      buildVersion: '0.9.3-dev',
+      allTags: [],
     }),
     '0.9.2'
   );
