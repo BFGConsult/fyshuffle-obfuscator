@@ -48,6 +48,14 @@ test('package includes release build script', async () => {
   assert.equal(pkg.scripts['build:release'], 'node scripts/build.js --release && npm run tsgen && npm run types');
 });
 
+test('declaration build targets the core module API, not browser bundles', async () => {
+  const tsconfig = JSON.parse(await readText('tsconfig.build.json'));
+
+  assert.equal(tsconfig.compilerOptions.declaration, true);
+  assert.equal(tsconfig.compilerOptions.emitDeclarationOnly, true);
+  assert.deepEqual(tsconfig.include, ['src/FYShuffle.module.js']);
+});
+
 test('publish workflow contains release verification and trusted publishing steps', async () => {
   const workflow = await readText('.github/workflows/publish.yml');
 

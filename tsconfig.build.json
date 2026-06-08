@@ -6,15 +6,10 @@
     "moduleResolution": "nodenext",
     "allowJs": true,
     "checkJs": true,
-    "declaration": false,
-    "emitDeclarationOnly": false,
-    "noEmit": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
     "outDir": "./ts",
     "strict": true
   },
-  "include": [
-    "dist/FYShuffle.js",
-    "dist/FYShuffle.module.js",
-    "dist/FYShuffle.node.js"
-  ]
+  "include": ["src/FYShuffle.module.js"]
 }
