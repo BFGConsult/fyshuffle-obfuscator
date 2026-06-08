@@ -253,6 +253,8 @@ long-term use. Development artifacts with `-dev` in the filename are not stable 
 
 Use `npm run build -v` for verbose logging.
 
+For release steps, see [docs/release-checklist.md](docs/release-checklist.md).
+
 ---
 
 ## Demo
