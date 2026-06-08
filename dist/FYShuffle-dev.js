@@ -1,5 +1,5 @@
 console.warn(
-  'FYShuffle: You are using the unversioned FYShuffle-dev.js. For long-term stability, consider switching to a versioned file like FYShuffle.v0.9.2-dev.js',
+  'FYShuffle: You are using the unversioned FYShuffle-dev.js. For long-term stability, consider switching to a versioned file like FYShuffle.v0.9.3-dev.js',
 );
 
 /* FYShuffle.js — browser (UMD-style) */
