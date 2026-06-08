@@ -217,10 +217,17 @@ function getDeclarativeKey(element) {
     return key;
 }
 
+function validateDeclarativeContent(element) {
+    if (!('content' in element.dataset)) {
+        throw new TypeError('FYShuffle: data-content is required for declarative elements');
+    }
+}
+
 function collectDeclarativeTargets() {
     const targets = [];
 
     Array.prototype.forEach.call(selectDeclarativeTargets(), function (element) {
+        validateDeclarativeContent(element);
         targets.push({
             element,
             transform: getDeclarativeTransform(element),

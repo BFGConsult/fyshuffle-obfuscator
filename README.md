@@ -135,7 +135,18 @@ Declarative markup can opt in with `data-fyshuffle` and a per-element `data-key`
 ```
 
 Use `data-fyshuffle="mailto"`, `data-fyshuffle="text"`, or `data-fyshuffle="scramble"`.
-Call `FYShuffle.init({ immediate: true })` to transform declarative elements immediately.
+Declarative elements must include `data-content` and `data-key`.
+
+`FYShuffle.init()` timing is explicit:
+
+| Call | Behavior |
+| --- | --- |
+| `FYShuffle.init()` | Observe declarative elements and transform them when visible |
+| `FYShuffle.init({ immediate: false })` | Same as the default observe-style behavior |
+| `FYShuffle.init({ immediate: true })` | Transform declarative elements immediately |
+
+Observer options such as `root`, `rootMargin`, `threshold`, and `fallbackText` apply only when
+`immediate` is omitted or `false`.
 
 ### Browser API Contract
 
@@ -154,6 +165,15 @@ They warn once per page load and forward to `FYShuffle.apply()`.
 Package imports remain core-only. The ESM and CommonJS package entries intentionally export
 only `FYForward`, `FYBackward`, `genPerm`, and `nextRand`; browser DOM helpers are not package
 exports and are not part of the package declaration file.
+
+Browser DOM helpers are available from standalone browser files:
+
+- `dist/FYShuffle.vX.Y.Z.js` for pinned release use
+- `dist/FYShuffle.js` for the latest stable browser file in a release build
+- `dist/FYShuffle-dev.js` for local development and testing only
+
+The `package.json` `browser` field points to `dist/FYShuffle.js` for release/browser consumers,
+while module imports remain core-only.
 
 ---
 
@@ -212,6 +232,10 @@ To generate the output bundles:
 npm run build
 ```
 
+Development builds produce `FYShuffle-dev.js` and versioned `*-dev` files. Release builds use
+the package version without `-dev`; run `npm run build:release` only when preparing the final
+release artifact commit for a matching version tag.
+
 The following files will be created in the `dist/` directory:
 
 ```
@@ -223,6 +247,9 @@ dist/
 ├── FYShuffle.node.cjs    // CommonJS for Node
 └── manifest.json         // Build artifact manifest
 ```
+
+Consumers should prefer versioned stable browser artifacts such as `FYShuffle.v1.0.0.js` for
+long-term use. Development artifacts with `-dev` in the filename are not stable consumer targets.
 
 Use `npm run build -v` for verbose logging.
 

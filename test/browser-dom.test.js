@@ -463,6 +463,27 @@ test('FYShuffle.init rejects invalid declarative markup', async () => {
   );
 });
 
+test('FYShuffle.init rejects declarative targets missing data-content', async () => {
+  const context = await loadBrowserContext();
+  const key = 123456;
+
+  for (const mode of ['mailto', 'text', 'scramble']) {
+    context.document = new FakeDocument([
+      new FakeElement('span', {
+        dataset: {
+          fyshuffle: mode,
+          key: String(key),
+        },
+      }),
+    ]);
+
+    assert.throws(
+      () => context.FYShuffle.init({ immediate: true }),
+      /data-content is required/
+    );
+  }
+});
+
 test('browser FYForward and FYBackward round-trip representative Unicode text', async () => {
   const context = await loadBrowserContext();
   const cases = [
