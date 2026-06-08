@@ -34,6 +34,7 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import prettier from 'prettier';
 import * as terser from 'terser';
+import { resolveBuildVersion } from './build-version.js';
 
 const __dirname = path.resolve();
 const distDir = path.join(__dirname, 'dist');
@@ -92,19 +93,15 @@ async function getTagsAtHead() {
   }
 }
 
-async function resolveBuildVersion(version) {
-  if (isReleaseOverride) {
-    return version;
+async function getAllTags() {
+  try {
+    const { stdout } = await execFileAsync('git', ['tag', '--list'], {
+      cwd: __dirname,
+    });
+    return stdout.split(/\r?\n/).filter(Boolean);
+  } catch {
+    return [];
   }
-
-  const tagsAtHead = await getTagsAtHead();
-  const releaseTags = new Set([version, `v${version}`]);
-
-  if (tagsAtHead.some((tag) => releaseTags.has(tag))) {
-    return version;
-  }
-
-  return version.endsWith('-dev') ? version : `${version}-dev`;
 }
 
 async function resolveStableBrowserVersion(version, buildVersion) {
@@ -127,10 +124,17 @@ async function resolveStableBrowserVersion(version, buildVersion) {
   return version;
 }
 
-const buildVersion = await resolveBuildVersion(pkg.version);
+const buildVersion = resolveBuildVersion({
+  packageVersion: pkg.version,
+  releaseOverride: isReleaseOverride,
+  tagsAtHead: await getTagsAtHead(),
+  allTags: await getAllTags(),
+});
 const stableBrowserVersion = await resolveStableBrowserVersion(pkg.version, buildVersion);
 const isReleaseBuild = buildVersion === pkg.version;
 const browserLegacyFile = isReleaseBuild ? 'FYShuffle.js' : 'FYShuffle-dev.js';
+const staleDevArtifactPattern =
+  /^FYShuffle(?:\.module|\.node)?\.v\d+\.\d+\.\d+-dev\.(?:js|cjs)$/;
 
 function stripModuleSyntax(code, filePath) {
   return code
@@ -276,7 +280,27 @@ async function updatePackageJson(version) {
   console.log('📝 Updated package.json files list');
 }
 
+async function removeStaleDevArtifacts() {
+  try {
+    const entries = await fs.readdir(distDir);
+    await Promise.all(
+      entries
+        .filter((entry) => staleDevArtifactPattern.test(entry))
+        .map(async (entry) => {
+          await fs.unlink(path.join(distDir, entry));
+          console.log(`🧹 Removed stale dev artifact: ${entry}`);
+        })
+    );
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
+      throw err;
+    }
+  }
+}
+
 async function buildAll() {
+  await removeStaleDevArtifacts();
+
   const keysToBuild = onlyTarget
     ? Object.keys(targets).includes(onlyTarget)
       ? [onlyTarget]

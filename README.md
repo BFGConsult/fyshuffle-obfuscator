@@ -232,9 +232,10 @@ To generate the output bundles:
 npm run build
 ```
 
-Development builds produce `FYShuffle-dev.js` and versioned `*-dev` files. Release builds use
-the package version without `-dev`; run `npm run build:release` only when preparing the final
-release artifact commit for a matching version tag.
+Development builds produce `FYShuffle-dev.js` and versioned `*-dev` files. Untagged development
+builds use the next patch after the latest release tag, for example `0.9.3-dev` after release
+tag `v0.9.2`. Release builds use the package version without `-dev`; run `npm run build:release`
+only when preparing the final release artifact commit for a matching version tag.
 
 The following files will be created in the `dist/` directory:
 
