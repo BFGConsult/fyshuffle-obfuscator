@@ -17,11 +17,27 @@ export function FYForward(text: string, key: number): string;
  */
 export function FYBackward(enc: string, key: number): string;
 /**
+ * @deprecated Use higher-level FYShuffle helpers instead.
  * @param {number} X
  * @returns {number}
  */
 export function nextRand(X: number): number;
 /**
+ * @template T
+ * @param {T[]} items
+ * @param {number} key
+ * @returns {T[]}
+ */
+export function permuteArray<T>(items: T[], key: number): T[];
+/**
+ * @template T
+ * @param {T[]} items
+ * @param {number} key
+ * @returns {T[]}
+ */
+export function unpermuteArray<T>(items: T[], key: number): T[];
+/**
+ * @deprecated Use higher-level FYShuffle helpers instead.
  * @param {number} n
  * @param {number} key
  * @returns {number[]}
