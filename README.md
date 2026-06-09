@@ -190,6 +190,9 @@ For 1.0, the supported browser API is the `window.FYShuffle` namespace:
 provide the general-purpose array permutation API without mutating input arrays. `genPerm` and
 `nextRand` remain public compatibility wrappers, but are deprecated implementation details. They
 warn once when called directly; internal FYShuffle code uses warning-free internal functions.
+Keys must be non-negative safe integers; fractional and negative keys are rejected.
+This is a backward compatibility break for callers that previously used fractional or negative
+keys, but it should not affect content generated with non-negative integer keys.
 
 The deprecated helpers are also available as legacy global functions in the browser build.
 They warn once per page load and forward to `FYShuffle.apply()`.

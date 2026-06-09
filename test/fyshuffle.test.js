@@ -104,6 +104,21 @@ test('array permutation helpers reject non-arrays', async () => {
   assert.throws(() => unpermuteArray('abc', 123456), /unpermuteArray requires an array/);
 });
 
+test('public APIs reject negative and fractional keys', async () => {
+  const { FYForward, FYBackward, genPerm, nextRand, permuteArray, unpermuteArray } = await import(
+    '../dist/FYShuffle.module.js'
+  );
+
+  for (const badKey of [-1, 0.5]) {
+    assert.throws(() => FYForward('hello@example.com', badKey), /non-negative integer key/);
+    assert.throws(() => FYBackward('abc', badKey), /non-negative integer key/);
+    assert.throws(() => permuteArray(['a', 'b'], badKey), /non-negative integer key/);
+    assert.throws(() => unpermuteArray(['a', 'b'], badKey), /non-negative integer key/);
+    assert.throws(() => genPerm(2, badKey), /non-negative integer key/);
+    assert.throws(() => nextRand(badKey), /non-negative integer key/);
+  }
+});
+
 test('FYForward and FYBackward round-trip representative text', async () => {
   const { FYForward, FYBackward } = await import('../dist/FYShuffle.module.js');
   const cases = [

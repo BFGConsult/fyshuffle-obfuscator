@@ -1,4 +1,4 @@
-import { genPerm_internal } from './fyshuffle-core.js';
+import { genPerm_internal, shuffleArray_internal, validateKey_internal } from './fyshuffle-core.js';
 // @ts-ignore: TS2792 - base64.js is resolved during bundle
 import { base64Encode, base64Decode } from './core/base64.js';
 
@@ -10,15 +10,17 @@ import { base64Encode, base64Decode } from './core/base64.js';
  * @returns {string} The obfuscated output string.
  */
 export function FYForward(text, key) {
+    key = validateKey_internal(key, 'FYForward');
     var b64 = base64Encode(text);
-    b64 = b64.replace(/=+$/, "");
-    var n = b64.length;
-    var perm = genPerm_internal(n, key);
-    var enc = '';
-    for (var i = 0; i < n; ++i) {
-        enc += b64[perm[i]];
+    if (b64.endsWith('==')) {
+        b64 = b64.slice(0, -2);
+    } else if (b64.endsWith('=')) {
+        b64 = b64.slice(0, -1);
     }
-    return enc;
+
+    var chars = b64.split('');
+    shuffleArray_internal(chars, key);
+    return chars.join('');
 }
 
 /**
@@ -30,8 +32,8 @@ export function FYForward(text, key) {
  */
 export function FYBackward(enc, key) {
     var n = enc.length;
-    var perm = genPerm_internal(n, key);
-    var b64a = [];
+    var perm = genPerm_internal(n, key, 'FYBackward');
+    var b64a = new Array(n);
     for (var i = 0; i < n; ++i) {
         b64a[perm[i]] = enc[i];
     }

@@ -1,4 +1,4 @@
-import { genPerm, nextRand, permuteArray, unpermuteArray } from './fyshuffle-core.js';
+import { genPerm, nextRand, permuteArray, unpermuteArray, validateKey_internal } from './fyshuffle-core.js';
 import { FYForward, FYBackward } from './fyshuffle-crypto.js';
 
 const deprecatedWarnings = {};
@@ -143,12 +143,15 @@ function validateConfig(config, apiName) {
         throw new TypeError(`FYShuffle.${apiName} requires a config object`);
     }
 
-    const key = config.key;
+    return validateConfigKey(config.key, apiName);
+}
+
+function validateConfigKey(key, apiName) {
     if (typeof key !== 'number' || !Number.isFinite(key)) {
         throw new TypeError(`FYShuffle.${apiName} requires a numeric key`);
     }
 
-    return key;
+    return validateKey_internal(key, apiName);
 }
 
 function applyConfig(config) {
@@ -209,7 +212,7 @@ function parseDeclarativeKey(rawKey) {
         throw new TypeError('FYShuffle: data-key must be numeric');
     }
 
-    return key;
+    return validateKey_internal(key, 'init');
 }
 
 function getDeclarativeKey(element, defaultKey) {
@@ -386,7 +389,7 @@ async function fetchInitKey(keyUrl) {
         throw new TypeError('FYShuffle.init keyUrl response must contain a numeric key');
     }
 
-    return payload.key;
+    return validateKey_internal(payload.key, 'init');
 }
 
 function initConfig(config) {

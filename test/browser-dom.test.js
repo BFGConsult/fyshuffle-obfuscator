@@ -274,6 +274,43 @@ test('array permutation helpers require arrays', async () => {
   );
 });
 
+test('browser public APIs reject negative and fractional keys', async () => {
+  const context = await loadBrowserContext();
+
+  for (const badKey of [-1, 0.5]) {
+    assert.throws(
+      () => context.FYShuffle.FYForward('hello@example.com', badKey),
+      /non-negative integer key/
+    );
+    assert.throws(() => context.FYShuffle.FYBackward('abc', badKey), /non-negative integer key/);
+    assert.throws(
+      () => context.FYShuffle.permuteArray(['a', 'b'], badKey),
+      /non-negative integer key/
+    );
+    assert.throws(
+      () => context.FYShuffle.unpermuteArray(['a', 'b'], badKey),
+      /non-negative integer key/
+    );
+    assert.throws(() => context.FYShuffle.genPerm(2, badKey), /non-negative integer key/);
+    assert.throws(() => context.FYShuffle.nextRand(badKey), /non-negative integer key/);
+    assert.throws(() => context.FYShuffle.apply({ key: badKey }), /non-negative integer key/);
+    assert.throws(() => context.FYShuffle.observe({ key: badKey }), /non-negative integer key/);
+    assert.throws(
+      () => context.FYShuffle.mailtoClass('email', badKey),
+      /non-negative integer key/
+    );
+    assert.throws(
+      () => context.FYShuffle.unscrambleClass('secret', badKey),
+      /non-negative integer key/
+    );
+    assert.throws(
+      () => context.FYShuffle.scrambleClass('encode', badKey),
+      /non-negative integer key/
+    );
+    assert.throws(() => context.FYShuffle.mtoClass(badKey), /non-negative integer key/);
+  }
+});
+
 test('FYShuffle.init processes declarative targets immediately', async () => {
   const context = await loadBrowserContext();
   const key = 123456;
@@ -552,6 +589,32 @@ test('FYShuffle.init with keyUrl rejects invalid remote key responses', async ()
   }
 });
 
+test('FYShuffle.init with keyUrl rejects negative and fractional remote keys', async () => {
+  for (const payload of [{ key: -1 }, { key: 0.5 }]) {
+    const context = await loadBrowserContext({
+      fetch() {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(payload),
+        });
+      },
+    });
+    context.document = new FakeDocument([
+      new FakeElement('span', {
+        dataset: {
+          fyshuffle: 'text',
+          content: 'ignored',
+        },
+      }),
+    ]);
+
+    await assert.rejects(
+      () => context.FYShuffle.init({ keyUrl: '/path/to/fyshuffle-key.json' }),
+      /non-negative integer key/
+    );
+  }
+});
+
 test('FYShuffle.init with keyUrl rejects failed fetches', async () => {
   const context = await loadBrowserContext({
     fetch() {
@@ -668,6 +731,34 @@ test('FYShuffle.init rejects invalid declarative markup', async () => {
   assert.throws(
     () => context.FYShuffle.init({ immediate: true }),
     /data-key must be numeric/
+  );
+
+  context.document = new FakeDocument([
+    new FakeElement('span', {
+      dataset: {
+        fyshuffle: 'text',
+        key: '-1',
+        content: context.FYForward('Hidden text', key),
+      },
+    }),
+  ]);
+  assert.throws(
+    () => context.FYShuffle.init({ immediate: true }),
+    /non-negative integer key/
+  );
+
+  context.document = new FakeDocument([
+    new FakeElement('span', {
+      dataset: {
+        fyshuffle: 'text',
+        key: '0.5',
+        content: context.FYForward('Hidden text', key),
+      },
+    }),
+  ]);
+  assert.throws(
+    () => context.FYShuffle.init({ immediate: true }),
+    /non-negative integer key/
   );
 
   context.document = new FakeDocument([
