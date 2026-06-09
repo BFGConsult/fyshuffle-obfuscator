@@ -187,7 +187,8 @@ For 1.0, the supported browser API is the `window.FYShuffle` namespace:
 - Deprecated compatibility helpers: `mtoClass`, `mailtoClass`, `unscrambleClass`, `scrambleClass`
 
 `FYForward` and `FYBackward` are the primary core API. `genPerm` and `nextRand` remain public
-low-level helpers for compatibility and deterministic testing.
+compatibility wrappers, but are deprecated implementation details. They warn once when called
+directly; internal FYShuffle code uses warning-free internal functions.
 
 The deprecated helpers are also available as legacy global functions in the browser build.
 They warn once per page load and forward to `FYShuffle.apply()`.
@@ -210,7 +211,7 @@ while module imports remain core-only.
 ### In Node.js
 
 ```js
-import { FYForward, FYBackward } from 'FYShuffle';
+import { FYForward, FYBackward } from 'fyshuffle-obfuscator';
 
 const key = 123456;
 const input = 'hello@example.com';

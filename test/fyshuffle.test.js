@@ -23,6 +23,16 @@ function assertPublicExports(module) {
   }
 }
 
+async function withoutConsoleWarn(fn) {
+  const originalWarn = console.warn;
+  console.warn = () => {};
+  try {
+    return await fn();
+  } finally {
+    console.warn = originalWarn;
+  }
+}
+
 test('ESM bundle exposes the public API', async () => {
   const fyshuffle = await import('../dist/FYShuffle.module.js');
 
@@ -45,12 +55,12 @@ test('CommonJS require exposes the public API', () => {
 test('nextRand produces the expected first value for a zero seed', async () => {
   const { nextRand } = await import('../dist/FYShuffle.module.js');
 
-  assert.equal(nextRand(0), 12345);
+  assert.equal(await withoutConsoleWarn(() => nextRand(0)), 12345);
 });
 
 test('genPerm returns a complete permutation', async () => {
   const { genPerm } = await import('../dist/FYShuffle.module.js');
-  const perm = genPerm(8, 123456);
+  const perm = await withoutConsoleWarn(() => genPerm(8, 123456));
 
   assert.equal(perm.length, 8);
   assert.deepEqual([...perm].sort((a, b) => a - b), [0, 1, 2, 3, 4, 5, 6, 7]);
@@ -59,7 +69,10 @@ test('genPerm returns a complete permutation', async () => {
 test('genPerm is deterministic for the same length and key', async () => {
   const { genPerm } = await import('../dist/FYShuffle.module.js');
 
-  assert.deepEqual(genPerm(12, 98765), genPerm(12, 98765));
+  assert.deepEqual(
+    await withoutConsoleWarn(() => genPerm(12, 98765)),
+    await withoutConsoleWarn(() => genPerm(12, 98765))
+  );
 });
 
 test('FYForward and FYBackward round-trip representative text', async () => {

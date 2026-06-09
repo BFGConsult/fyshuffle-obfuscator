@@ -1,4 +1,4 @@
-import { genPerm } from './fyshuffle-core.js';
+import { genPerm_internal } from './fyshuffle-core.js';
 // @ts-ignore: TS2792 - base64.js is resolved during bundle
 import { base64Encode, base64Decode } from './core/base64.js';
 
@@ -13,7 +13,7 @@ export function FYForward(text, key) {
     var b64 = base64Encode(text);
     b64 = b64.replace(/=+$/, "");
     var n = b64.length;
-    var perm = genPerm(n, key);
+    var perm = genPerm_internal(n, key);
     var enc = '';
     for (var i = 0; i < n; ++i) {
         enc += b64[perm[i]];
@@ -30,7 +30,7 @@ export function FYForward(text, key) {
  */
 export function FYBackward(enc, key) {
     var n = enc.length;
-    var perm = genPerm(n, key);
+    var perm = genPerm_internal(n, key);
     var b64a = [];
     for (var i = 0; i < n; ++i) {
         b64a[perm[i]] = enc[i];

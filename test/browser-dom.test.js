@@ -213,6 +213,34 @@ test('browser build exposes deprecated DOM helpers as legacy globals', async () 
   }
 });
 
+test('deprecated core helpers warn once and call through', async () => {
+  const context = await loadBrowserContext();
+
+  assert.equal(context.FYShuffle.nextRand(0), 12345);
+  assert.equal(context.FYShuffle.nextRand(0), 12345);
+
+  const perm = context.FYShuffle.genPerm(8, 123456);
+  context.FYShuffle.genPerm(8, 123456);
+
+  assert.equal(perm.length, 8);
+  assert.deepEqual([...perm].sort((a, b) => a - b), [0, 1, 2, 3, 4, 5, 6, 7]);
+  assert.deepEqual(context.warnings, [
+    'FYShuffle: nextRand() is deprecated; use FYForward()/FYBackward() instead.',
+    'FYShuffle: genPerm() is deprecated; use FYForward()/FYBackward() instead.',
+  ]);
+});
+
+test('FYForward and FYBackward do not trigger deprecated core warnings', async () => {
+  const context = await loadBrowserContext();
+  const key = 123456;
+
+  assert.equal(
+    context.FYBackward(context.FYForward('hello@example.com', key), key),
+    'hello@example.com'
+  );
+  assert.deepEqual(context.warnings, []);
+});
+
 test('FYShuffle.init processes declarative targets immediately', async () => {
   const context = await loadBrowserContext();
   const key = 123456;
