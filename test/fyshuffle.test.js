@@ -2,7 +2,14 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import test from 'node:test';
 
-const expectedExports = ['FYBackward', 'FYForward', 'genPerm', 'nextRand'];
+const expectedExports = [
+  'FYBackward',
+  'FYForward',
+  'genPerm',
+  'nextRand',
+  'permuteArray',
+  'unpermuteArray',
+];
 const browserOnlyExports = [
   'apply',
   'init',
@@ -73,6 +80,28 @@ test('genPerm is deterministic for the same length and key', async () => {
     await withoutConsoleWarn(() => genPerm(12, 98765)),
     await withoutConsoleWarn(() => genPerm(12, 98765))
   );
+});
+
+test('array permutation helpers round-trip arbitrary array values', async () => {
+  const { permuteArray, unpermuteArray } = await import('../dist/FYShuffle.module.js');
+  const first = { value: 'first' };
+  const original = [first, 42, 'text', null, ['nested']];
+
+  const permuted = permuteArray(original, 123456);
+  const restored = unpermuteArray(permuted, 123456);
+
+  assert.notEqual(permuted, original);
+  assert.notEqual(restored, permuted);
+  assert.deepEqual(restored, original);
+  assert.equal(restored[0], first);
+  assert.deepEqual(original, [first, 42, 'text', null, ['nested']]);
+});
+
+test('array permutation helpers reject non-arrays', async () => {
+  const { permuteArray, unpermuteArray } = await import('../dist/FYShuffle.module.js');
+
+  assert.throws(() => permuteArray('abc', 123456), /permuteArray requires an array/);
+  assert.throws(() => unpermuteArray('abc', 123456), /unpermuteArray requires an array/);
 });
 
 test('FYForward and FYBackward round-trip representative text', async () => {

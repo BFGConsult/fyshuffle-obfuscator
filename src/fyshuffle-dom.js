@@ -1,4 +1,4 @@
-import { genPerm, nextRand } from './fyshuffle-core.js';
+import { genPerm, nextRand, permuteArray, unpermuteArray } from './fyshuffle-core.js';
 import { FYForward, FYBackward } from './fyshuffle-crypto.js';
 
 const deprecatedWarnings = {};
@@ -455,6 +455,8 @@ globalThis.FYShuffle = {
     FYBackward,
     genPerm,
     nextRand,
+    permuteArray,
+    unpermuteArray,
     apply: applyConfig,
     observe: observeConfig,
     init: initConfig,

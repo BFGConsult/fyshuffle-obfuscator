@@ -161,10 +161,10 @@ async function buildTarget(targetKey) {
     let combined = `${banner}\n\n${contents.join('\n\n')}`;
 
     if (targetKey === 'node') {
-      combined += `\n\nmodule.exports = { FYForward, FYBackward, genPerm, nextRand };`;
+      combined += `\n\nmodule.exports = { FYForward, FYBackward, genPerm, nextRand, permuteArray, unpermuteArray };`;
     }
     if (targetKey === 'esm') {
-      combined += `\n\nexport { FYForward, FYBackward, genPerm, nextRand };`;
+      combined += `\n\nexport { FYForward, FYBackward, genPerm, nextRand, permuteArray, unpermuteArray };`;
     }
 
     const output = await prettier.format(combined, {

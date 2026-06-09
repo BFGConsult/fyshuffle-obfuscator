@@ -182,20 +182,21 @@ Observer options such as `root`, `rootMargin`, `threshold`, and `fallbackText` a
 
 For 1.0, the supported browser API is the `window.FYShuffle` namespace:
 
-- Core helpers: `FYForward`, `FYBackward`, `genPerm`, `nextRand`
+- Core helpers: `FYForward`, `FYBackward`, `permuteArray`, `unpermuteArray`, `genPerm`, `nextRand`
 - DOM entrypoints: `apply(config)`, `observe(config)`, `init(config)`
 - Deprecated compatibility helpers: `mtoClass`, `mailtoClass`, `unscrambleClass`, `scrambleClass`
 
-`FYForward` and `FYBackward` are the primary core API. `genPerm` and `nextRand` remain public
-compatibility wrappers, but are deprecated implementation details. They warn once when called
-directly; internal FYShuffle code uses warning-free internal functions.
+`FYForward` and `FYBackward` are the primary string API. `permuteArray` and `unpermuteArray`
+provide the general-purpose array permutation API without mutating input arrays. `genPerm` and
+`nextRand` remain public compatibility wrappers, but are deprecated implementation details. They
+warn once when called directly; internal FYShuffle code uses warning-free internal functions.
 
 The deprecated helpers are also available as legacy global functions in the browser build.
 They warn once per page load and forward to `FYShuffle.apply()`.
 
 Package imports remain core-only. The ESM and CommonJS package entries intentionally export
-only `FYForward`, `FYBackward`, `genPerm`, and `nextRand`; browser DOM helpers are not package
-exports and are not part of the package declaration file.
+only `FYForward`, `FYBackward`, `permuteArray`, `unpermuteArray`, `genPerm`, and `nextRand`;
+browser DOM helpers are not package exports and are not part of the package declaration file.
 
 Browser DOM helpers are available from standalone browser files:
 

@@ -194,7 +194,9 @@ test('browser namespace exposes FYShuffle.apply and core helpers', async () => {
     'mtoClass',
     'nextRand',
     'observe',
+    'permuteArray',
     'scrambleClass',
+    'unpermuteArray',
     'unscrambleClass',
   ];
 
@@ -226,7 +228,7 @@ test('deprecated core helpers warn once and call through', async () => {
   assert.deepEqual([...perm].sort((a, b) => a - b), [0, 1, 2, 3, 4, 5, 6, 7]);
   assert.deepEqual(context.warnings, [
     'FYShuffle: nextRand() is deprecated; use FYForward()/FYBackward() instead.',
-    'FYShuffle: genPerm() is deprecated; use FYForward()/FYBackward() instead.',
+    'FYShuffle: genPerm() is deprecated; use permuteArray()/unpermuteArray() instead.',
   ]);
 });
 
@@ -239,6 +241,37 @@ test('FYForward and FYBackward do not trigger deprecated core warnings', async (
     'hello@example.com'
   );
   assert.deepEqual(context.warnings, []);
+});
+
+test('array permutation helpers round-trip without mutation or warnings', async () => {
+  const context = await loadBrowserContext();
+  const first = { id: 1 };
+  const second = { id: 2 };
+  const original = [first, second, { id: 3 }, { id: 4 }];
+
+  const permuted = context.FYShuffle.permuteArray(original, 123456);
+  const restored = context.FYShuffle.unpermuteArray(permuted, 123456);
+
+  assert.notEqual(permuted, original);
+  assert.notEqual(restored, permuted);
+  assert.deepEqual(original, [first, second, { id: 3 }, { id: 4 }]);
+  assert.deepEqual(Array.from(restored, (item) => item.id), [1, 2, 3, 4]);
+  assert.equal(restored[0], first);
+  assert.equal(restored[1], second);
+  assert.deepEqual(context.warnings, []);
+});
+
+test('array permutation helpers require arrays', async () => {
+  const context = await loadBrowserContext();
+
+  assert.throws(
+    () => context.FYShuffle.permuteArray('abc', 123456),
+    /permuteArray requires an array/
+  );
+  assert.throws(
+    () => context.FYShuffle.unpermuteArray('abc', 123456),
+    /unpermuteArray requires an array/
+  );
 });
 
 test('FYShuffle.init processes declarative targets immediately', async () => {

@@ -52,12 +52,50 @@ export function genPerm_internal(n, key) {
 }
 
 /**
+ * @template T
+ * @param {T[]} items
+ * @param {number} key
+ * @returns {T[]}
+ */
+export function permuteArray(items, key) {
+    if (!Array.isArray(items)) {
+        throw new TypeError('FYShuffle.permuteArray requires an array');
+    }
+
+    var perm = genPerm_internal(items.length, key);
+    var result = [];
+    for (var i = 0; i < items.length; ++i) {
+        result[i] = items[perm[i]];
+    }
+    return result;
+}
+
+/**
+ * @template T
+ * @param {T[]} items
+ * @param {number} key
+ * @returns {T[]}
+ */
+export function unpermuteArray(items, key) {
+    if (!Array.isArray(items)) {
+        throw new TypeError('FYShuffle.unpermuteArray requires an array');
+    }
+
+    var perm = genPerm_internal(items.length, key);
+    var result = [];
+    for (var i = 0; i < items.length; ++i) {
+        result[perm[i]] = items[i];
+    }
+    return result;
+}
+
+/**
  * @deprecated Use higher-level FYShuffle helpers instead.
  * @param {number} n
  * @param {number} key
  * @returns {number[]}
  */
 export function genPerm(n, key) {
-    warnDeprecatedCore('genPerm', 'FYForward()/FYBackward()');
+    warnDeprecatedCore('genPerm', 'permuteArray()/unpermuteArray()');
     return genPerm_internal(n, key);
 }
