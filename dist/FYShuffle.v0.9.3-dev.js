@@ -2,6 +2,9 @@
 
 /** @type {Record<string, boolean>} */
 const deprecatedCoreWarnings = {};
+const RAND_A = 1103515245;
+const RAND_C = 12345;
+const RAND_M = 2147483648;
 /**
  * @param {string} name
  * @param {string} replacement
@@ -16,14 +19,24 @@ function warnDeprecatedCore(name, replacement) {
   );
 }
 /**
+ * @param {number} key
+ * @param {string} apiName
+ * @returns {number}
+ */
+function validateKey_internal(key, apiName) {
+  if (!Number.isSafeInteger(key) || key < 0) {
+    throw new TypeError(
+      `FYShuffle.${apiName} requires a non-negative integer key`,
+    );
+  }
+  return key;
+}
+/**
  * @param {number} X
  * @returns {number}
  */
 function nextRand_internal(X) {
-  var a = 1103515245;
-  var c = 12345;
-  var m = 1 << 31;
-  return (a * X + c) % m;
+  return (RAND_A * X + RAND_C) % RAND_M;
 }
 /**
  * @deprecated Use higher-level FYShuffle helpers instead.
@@ -32,22 +45,38 @@ function nextRand_internal(X) {
  */
 function nextRand(X) {
   warnDeprecatedCore('nextRand', 'FYForward()/FYBackward()');
+  X = validateKey_internal(X, 'nextRand');
   return nextRand_internal(X);
+}
+/**
+ * @template T
+ * @param {T[]} items
+ * @param {number} key
+ * @returns {void}
+ */
+function shuffleArray_internal(items, key) {
+  var n = items.length;
+  for (var i = 0; i < n; ++i) {
+    key = (RAND_A * key + RAND_C) % RAND_M;
+    var j = (key % (n - i)) + i;
+    var tmp = items[i];
+    items[i] = items[j];
+    items[j] = tmp;
+  }
 }
 /**
  * @param {number} n
  * @param {number} key
+ * @param {string} [apiName]
  * @returns {number[]}
  */
-function genPerm_internal(n, key) {
-  var perm = [...Array(n).keys()];
+function genPerm_internal(n, key, apiName) {
+  key = validateKey_internal(key, apiName || 'genPerm');
+  var perm = new Array(n);
   for (var i = 0; i < n; ++i) {
-    key = nextRand_internal(key);
-    var j = (key % (n - i)) + i;
-    var tmp = perm[i];
-    perm[i] = perm[j];
-    perm[j] = tmp;
+    perm[i] = i;
   }
+  shuffleArray_internal(perm, key);
   return perm;
 }
 /**
@@ -60,11 +89,9 @@ function permuteArray(items, key) {
   if (!Array.isArray(items)) {
     throw new TypeError('FYShuffle.permuteArray requires an array');
   }
-  var perm = genPerm_internal(items.length, key);
-  var result = [];
-  for (var i = 0; i < items.length; ++i) {
-    result[i] = items[perm[i]];
-  }
+  key = validateKey_internal(key, 'permuteArray');
+  var result = items.slice();
+  shuffleArray_internal(result, key);
   return result;
 }
 /**
@@ -77,9 +104,10 @@ function unpermuteArray(items, key) {
   if (!Array.isArray(items)) {
     throw new TypeError('FYShuffle.unpermuteArray requires an array');
   }
-  var perm = genPerm_internal(items.length, key);
-  var result = [];
-  for (var i = 0; i < items.length; ++i) {
+  var n = items.length;
+  var perm = genPerm_internal(n, key, 'unpermuteArray');
+  var result = new Array(n);
+  for (var i = 0; i < n; ++i) {
     result[perm[i]] = items[i];
   }
   return result;
@@ -145,15 +173,16 @@ function padBase64(str) {
  * @returns {string} The obfuscated output string.
  */
 function FYForward(text, key) {
+  key = validateKey_internal(key, 'FYForward');
   var b64 = base64Encode(text);
-  b64 = b64.replace(/=+$/, '');
-  var n = b64.length;
-  var perm = genPerm_internal(n, key);
-  var enc = '';
-  for (var i = 0; i < n; ++i) {
-    enc += b64[perm[i]];
+  if (b64.endsWith('==')) {
+    b64 = b64.slice(0, -2);
+  } else if (b64.endsWith('=')) {
+    b64 = b64.slice(0, -1);
   }
-  return enc;
+  var chars = b64.split('');
+  shuffleArray_internal(chars, key);
+  return chars.join('');
 }
 /**
  * Reverses the obfuscation produced by FYForward.
@@ -164,8 +193,8 @@ function FYForward(text, key) {
  */
 function FYBackward(enc, key) {
   var n = enc.length;
-  var perm = genPerm_internal(n, key);
-  var b64a = [];
+  var perm = genPerm_internal(n, key, 'FYBackward');
+  var b64a = new Array(n);
   for (var i = 0; i < n; ++i) {
     b64a[perm[i]] = enc[i];
   }
@@ -298,11 +327,13 @@ function validateConfig(config, apiName) {
   if (!config || typeof config !== 'object') {
     throw new TypeError(`FYShuffle.${apiName} requires a config object`);
   }
-  const key = config.key;
+  return validateConfigKey(config.key, apiName);
+}
+function validateConfigKey(key, apiName) {
   if (typeof key !== 'number' || !Number.isFinite(key)) {
     throw new TypeError(`FYShuffle.${apiName} requires a numeric key`);
   }
-  return key;
+  return validateKey_internal(key, apiName);
 }
 function applyConfig(config) {
   const key = validateConfig(config, 'apply');
@@ -352,7 +383,7 @@ function parseDeclarativeKey(rawKey) {
   if (!Number.isFinite(key)) {
     throw new TypeError('FYShuffle: data-key must be numeric');
   }
-  return key;
+  return validateKey_internal(key, 'init');
 }
 function getDeclarativeKey(element, defaultKey) {
   if (!('key' in element.dataset)) {
@@ -513,7 +544,7 @@ async function fetchInitKey(keyUrl) {
       'FYShuffle.init keyUrl response must contain a numeric key',
     );
   }
-  return payload.key;
+  return validateKey_internal(payload.key, 'init');
 }
 function initConfig(config) {
   config = validateInitConfig(config);
