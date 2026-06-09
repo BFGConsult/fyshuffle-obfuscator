@@ -13,6 +13,7 @@
  * - Beautifies output using Prettier
  * - Minifies browser build using Terser (dist/FYShuffle.min.js)
  * - Supports CLI flags:
+ *     -h / --help      Show usage information without building
  *     --target=<name>   Build only a specific target (browser, node, esm)
  *     --release         Build package.json version artifacts even before the tag exists
  *     -v / --verbose    Show stripped import/export lines during build
@@ -77,10 +78,34 @@ const targets = {
 };
 
 const args = process.argv.slice(2);
+const isHelp = args.includes('-h') || args.includes('--help');
 const targetArg = args.find((arg) => arg.startsWith('--target='));
 const onlyTarget = targetArg ? targetArg.split('=')[1] : null;
 const isVerbose = args.includes('-v') || args.includes('--verbose');
 const isReleaseOverride = args.includes('--release');
+
+function printHelp() {
+  console.log(`Usage: node scripts/build.js [options]
+
+Build FYShuffle distribution artifacts.
+
+Options:
+  -h, --help            Show this help and exit without building
+      --target=<name>   Build only one target: browser, node, or esm
+      --release         Force release artifact names from package.json version
+  -v, --verbose         Show stripped import/export lines during build
+
+Examples:
+  node scripts/build.js
+  node scripts/build.js --target=node
+  node scripts/build.js --release
+`);
+}
+
+if (isHelp) {
+  printHelp();
+  process.exit(0);
+}
 
 async function getTagsAtHead() {
   try {

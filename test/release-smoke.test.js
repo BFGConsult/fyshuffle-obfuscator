@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { readFile, stat } from 'node:fs/promises';
 import test from 'node:test';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 
 async function readText(path) {
   return readFile(path, 'utf8');
@@ -56,6 +60,25 @@ test('package includes release build script', async () => {
   const pkg = JSON.parse(await readText('package.json'));
 
   assert.equal(pkg.scripts['build:release'], 'node scripts/build.js --release && npm run tsgen && npm run types');
+});
+
+test('build script help exits without mutating generated files', async () => {
+  const watchedFiles = [
+    'package.json',
+    'dist/FYShuffle-dev.js',
+    'dist/manifest.json',
+  ];
+  const before = await Promise.all(watchedFiles.map(async (path) => [path, (await stat(path)).mtimeMs]));
+
+  const { stdout } = await execFileAsync(process.execPath, ['scripts/build.js', '--help']);
+
+  assert.match(stdout, /Usage: node scripts\/build\.js/);
+  assert.match(stdout, /--release/);
+  assert.match(stdout, /--target=<name>/);
+  assert.doesNotMatch(stdout, /Built FYShuffle/);
+
+  const after = await Promise.all(watchedFiles.map(async (path) => [path, (await stat(path)).mtimeMs]));
+  assert.deepEqual(after, before);
 });
 
 test('declaration build targets the core module API, not browser bundles', async () => {
