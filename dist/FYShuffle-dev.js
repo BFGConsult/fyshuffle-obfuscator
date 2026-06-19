@@ -490,7 +490,6 @@ function observeTargets(targets, config) {
   return {
     disconnect() {
       observer.disconnect();
-      pending.clear();
     },
     apply() {
       Array.from(pending).forEach(function (target) {
