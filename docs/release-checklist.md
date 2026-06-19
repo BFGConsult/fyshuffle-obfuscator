@@ -2,6 +2,10 @@
 
 Use this checklist before tagging and publishing a stable FYShuffle release.
 
+For `0.10.0`, treat the release as the FYShuffle `1.0.0` release candidate. The public API should
+be considered stable for `1.0.0` unless this checklist or release-candidate testing exposes a
+blocker.
+
 ## Pre-release Source Checks
 
 - Confirm the working tree is clean.

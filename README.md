@@ -2,6 +2,10 @@
 
 **FYShuffle** is a JavaScript-based text scrambler based on the [Fisher-Yates shuffle](https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle) algorithm. It is designed to obfuscate arbitrary text—primarily email addresses—so they are hidden from bots while remaining readable to users with JavaScript enabled.
 
+> **Release candidate:** `0.10.0` is intended as the FYShuffle `1.0.0` release candidate.
+> The public API is expected to remain stable for `1.0.0` unless release-candidate testing
+> exposes a blocker.
+
 ---
 
 ## Features
@@ -293,8 +297,9 @@ dist/
 └── manifest.json         // Build artifact manifest
 ```
 
-Consumers should prefer versioned stable browser artifacts such as `FYShuffle.v1.0.0.js` for
-long-term use. Development artifacts with `-dev` in the filename are not stable consumer targets.
+Consumers should prefer versioned stable browser artifacts such as `FYShuffle.v0.10.0.js` for
+this release-candidate cycle and `FYShuffle.v1.0.0.js` after the final stable release.
+Development artifacts with `-dev` in the filename are not stable consumer targets.
 
 Use `npm run build -v` for verbose logging.
 

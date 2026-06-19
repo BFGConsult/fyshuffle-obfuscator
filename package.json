@@ -1,6 +1,6 @@
 {
   "name": "fyshuffle-obfuscator",
-  "version": "0.9.2",
+  "version": "0.10.0",
   "type": "module",
   "main": "./dist/FYShuffle.node.cjs",
   "module": "./dist/FYShuffle.module.js",
@@ -36,12 +36,13 @@
     "undici-types": "^7.11.0"
   },
   "files": [
-    "dist/FYShuffle-dev.js",
-    "dist/FYShuffle.v0.9.3-dev.js",
+    "dist/FYShuffle.js",
+    "dist/FYShuffle.v0.10.0.js",
+    "dist/FYShuffle.min.js",
     "dist/FYShuffle.node.cjs",
-    "dist/FYShuffle.node.v0.9.3-dev.cjs",
+    "dist/FYShuffle.node.v0.10.0.cjs",
     "dist/FYShuffle.module.js",
-    "dist/FYShuffle.module.v0.9.3-dev.js",
+    "dist/FYShuffle.module.v0.10.0.js",
     "dist/FYShuffle.d.ts",
     "dist/manifest.json",
     "dist/README.md",
