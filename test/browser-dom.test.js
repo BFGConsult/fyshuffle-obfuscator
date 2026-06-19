@@ -430,13 +430,12 @@ test('FYShuffle.init controller can force apply or disconnect observed declarati
   const controller = context.FYShuffle.init({ immediate: false });
   const observer = IntersectionObserver.instances[0];
 
-  controller.apply();
-
-  assert.deepEqual(context.document.root.children, ['First', 'Second']);
-  assert.deepEqual(observer.unobserved, [first, second]);
-
   controller.disconnect();
   assert.equal(observer.disconnected, true);
+
+  controller.apply();
+  assert.deepEqual(context.document.root.children, ['First', 'Second']);
+  assert.deepEqual(observer.unobserved, [first, second]);
 });
 
 test('FYShuffle.init with keyUrl transforms declarative targets immediately', async () => {
@@ -927,12 +926,12 @@ test('FYShuffle.observe controller can disconnect or force apply', async () => {
   const controller = context.FYShuffle.observe({ key, text: 'secret' });
   const observer = IntersectionObserver.instances[0];
 
+  controller.disconnect();
+  assert.equal(observer.disconnected, true);
+
   controller.apply();
   assert.deepEqual(context.document.root.children, ['First', 'Second']);
   assert.deepEqual(observer.unobserved, [first, second]);
-
-  controller.disconnect();
-  assert.equal(observer.disconnected, true);
 });
 
 test('FYShuffle.observe fallback replaces targets with default text', async () => {

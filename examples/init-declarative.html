@@ -83,18 +83,35 @@
   </section>
 
   <script>
-    const controller = FYShuffle.init({
-      rootMargin: '0px',
-      threshold: 0,
-      fallbackText: 'Protected content unavailable',
-    });
+    const disconnectButton = document.getElementById('disconnect');
+    let isObserving = false;
+    let controller;
+
+    function connectObserver() {
+      controller = FYShuffle.init({
+        rootMargin: '0px',
+        threshold: 0,
+        fallbackText: 'Protected content unavailable',
+      });
+      isObserving = true;
+      disconnectButton.textContent = 'Disconnect observer';
+    }
+
+    connectObserver();
 
     document.getElementById('force-apply').addEventListener('click', function () {
       controller.apply();
     });
 
-    document.getElementById('disconnect').addEventListener('click', function () {
-      controller.disconnect();
+    disconnectButton.addEventListener('click', function () {
+      if (isObserving) {
+        controller.disconnect();
+        isObserving = false;
+        disconnectButton.textContent = 'Reconnect observer';
+        return;
+      }
+
+      connectObserver();
     });
   </script>
 </body>

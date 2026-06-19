@@ -18,6 +18,8 @@ test('declarative init example includes expected browser controls and attributes
   assert.match(html, /data-key=/);
   assert.match(html, /id="force-apply"/);
   assert.match(html, /id="disconnect"/);
+  assert.match(html, /Disconnect observer/);
+  assert.match(html, /Reconnect observer/);
 });
 
 test('observe fallback example disables IntersectionObserver and configures fallback text', async () => {
