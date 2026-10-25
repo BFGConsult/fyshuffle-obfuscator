@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { cp, mkdtemp, readFile, rm, symlink } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -25,11 +25,16 @@ async function createBuildFixture(t) {
 
 test('partial release builds reject a development artifact mode transition', async (t) => {
   const root = await createBuildFixture(t);
+  const packagePath = path.join(root, 'package.json');
+  const packageJson = JSON.parse(await readFile(packagePath, 'utf8'));
+  packageJson.version = '9.8.7';
+  await writeFile(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`);
 
   await execFileAsync(process.execPath, ['scripts/build.js', '--dev'], { cwd: root });
 
+  const manifest = JSON.parse(await readFile(path.join(root, 'dist/manifest.json'), 'utf8'));
   const paths = [
-    'dist/FYShuffle.node.v0.10.1-dev.cjs',
+    path.join('dist', manifest.files.node.versioned),
     'dist/manifest.json',
     'package.json',
   ];
