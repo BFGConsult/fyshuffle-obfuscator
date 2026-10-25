@@ -305,6 +305,45 @@ function isStaleDevArtifactForTarget(entry, targetKey) {
   return patternByTarget[targetKey].test(entry);
 }
 
+function versionedArtifactName(targetKey, version) {
+  return targets[targetKey].out.replace(/(\.c?js)$/, `.v${version}$1`);
+}
+
+async function assertPartialBuildPreservesMetadata(targetKeys) {
+  if (targetKeys.length === Object.keys(targets).length) {
+    return;
+  }
+
+  const manifestPath = path.join(distDir, 'manifest.json');
+  let manifest;
+
+  try {
+    manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8'));
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      return;
+    }
+    throw err;
+  }
+
+  const pkgRaw = await fs.readFile(pkgPath, 'utf8');
+  const pkgJson = JSON.parse(pkgRaw);
+
+  for (const targetKey of targetKeys) {
+    const versioned = versionedArtifactName(targetKey, buildVersion);
+    const packagePath = `dist/${versioned}`;
+
+    if (
+      manifest.files[targetKey]?.versioned !== versioned ||
+      !pkgJson.files.includes(packagePath)
+    ) {
+      throw new Error(
+        `Partial ${isReleaseBuild ? 'release' : 'development'} build for ${targetKey} would invalidate existing metadata; run a full build instead.`
+      );
+    }
+  }
+}
+
 async function removeStaleDevArtifacts(targetKeys) {
   try {
     const entries = await fs.readdir(distDir);
@@ -330,6 +369,7 @@ async function buildAll() {
       : (console.error(`❌ Unknown target: ${onlyTarget}`), process.exit(1))
     : Object.keys(targets);
 
+  await assertPartialBuildPreservesMetadata(keysToBuild);
   await removeStaleDevArtifacts(keysToBuild);
 
   const results = await Promise.all(keysToBuild.map(buildTarget));
