@@ -1,6 +1,6 @@
 {
   "name": "fyshuffle-obfuscator",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "type": "module",
   "main": "./dist/FYShuffle.node.cjs",
   "module": "./dist/FYShuffle.module.js",
