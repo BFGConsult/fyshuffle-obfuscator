@@ -96,6 +96,12 @@ async function loadBrowserArtifactContext(file, options = {}) {
   return context;
 }
 
+async function loadCurrentBrowserArtifactContext(options = {}) {
+  const manifest = JSON.parse(await readFile('dist/manifest.json', 'utf8'));
+  const file = manifest.files.browser.dev || manifest.files.browser.legacy;
+  return loadBrowserArtifactContext(file, options);
+}
+
 function createFakeIntersectionObserver() {
   const instances = [];
 
@@ -1113,8 +1119,8 @@ test('FYShuffle.observe fallback replaces targets with default text', async () =
   ]);
 });
 
-test('FYShuffle-dev.js uses text nodes for observer fallback', async () => {
-  const context = await loadBrowserArtifactContext('FYShuffle-dev.js');
+test('current browser artifact uses text nodes for observer fallback', async () => {
+  const context = await loadCurrentBrowserArtifactContext();
   const key = 123456;
   const element = new FakeElement('span', {
     className: 'secret',
@@ -1355,8 +1361,8 @@ test('FYShuffle.apply serializes reserved compact recipients and full address he
   }
 });
 
-test('FYShuffle-dev.js serializes compact mailto recipients and address headers', async () => {
-  const context = await loadBrowserArtifactContext('FYShuffle-dev.js');
+test('current browser artifact serializes compact mailto recipients and address headers', async () => {
+  const context = await loadCurrentBrowserArtifactContext();
   const key = 123456;
   const recipient = 'a?b@example.com';
   const payload = {
