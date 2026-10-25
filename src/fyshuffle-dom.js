@@ -77,13 +77,7 @@ function transformMailtoElement(element, key) {
     for (const field of ['cc', 'bcc', 'subject', 'body']) {
         const value = getMailtoField(field);
         if (value !== undefined) {
-            if (field[field.length - 1] === 'c') {
-                for (const mail of value.split(',')) {
-                    fields.push(`${field}=${esc(mail)}`);
-                }
-            } else {
-                fields.push(`${field}=${esc(value)}`);
-            }
+            fields.push(`${field}=${esc(value)}`);
         }
     }
 
