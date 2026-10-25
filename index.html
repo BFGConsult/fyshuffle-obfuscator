@@ -56,7 +56,13 @@
 
     const searchParams = new URLSearchParams(location.search);
     const toEncode = searchParams.getAll('encode');
-    let key = searchParams.get('key') || 0;
+    const rawKey = searchParams.get('key');
+    const key = rawKey === null ? 0 : Number(rawKey);
+
+    if (!Number.isSafeInteger(key) || key < 0) {
+      document.getElementById("toEncode").textContent = "Key must be a non-negative integer.";
+      throw new TypeError('FYShuffle demo requires a non-negative integer key');
+    }
 
     document.getElementById("key").value = key;
     document.getElementById("encode").value = toEncode;
@@ -68,8 +74,8 @@
       const span = document.createElement("span");
       span.className = 'encode';
       span.dataset['content'] = str;
+      np.appendChild(document.createTextNode(`${str} <=> `));
       np.appendChild(span);
-      span.insertAdjacentHTML('beforebegin', `${str} <=> `);
       p.parentNode.insertBefore(np, p.nextSibling);
     });
 

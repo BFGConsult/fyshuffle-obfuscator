@@ -12,7 +12,7 @@ export function base64Encode(str) {
         binary += String.fromCharCode(bytes[i]);
     }
 
-    return window.btoa(binary);
+    return globalThis.btoa(binary);
 }
 
 /**
@@ -23,7 +23,7 @@ export function base64Encode(str) {
  */
 export function base64Decode(str) {
     const padded = padBase64(str);
-    const binary = window.atob(padded);
+    const binary = globalThis.atob(padded);
     const bytes = new Uint8Array(binary.length);
 
     for (let i = 0; i < binary.length; i++) {
@@ -31,7 +31,7 @@ export function base64Decode(str) {
     }
 
     try {
-        return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+        return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
     } catch {
         return binary;
     }

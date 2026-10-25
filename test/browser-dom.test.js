@@ -68,6 +68,34 @@ async function loadBrowserContext(options = {}) {
   return context;
 }
 
+async function loadBrowserArtifactContext(file, options = {}) {
+  const warnings = [];
+  const context = {
+    console: {
+      warn(message) {
+        warnings.push(message);
+      },
+    },
+    encodeURIComponent,
+    atob(value) {
+      return Buffer.from(value, 'base64').toString('binary');
+    },
+    btoa(value) {
+      return Buffer.from(value, 'binary').toString('base64');
+    },
+    TextDecoder,
+    TextEncoder,
+    Uint8Array,
+    warnings,
+    ...options,
+  };
+  context.globalThis = context;
+  context.window = context;
+
+  vm.runInNewContext(await readFile(`dist/${file}`, 'utf8'), context);
+  return context;
+}
+
 function createFakeIntersectionObserver() {
   const instances = [];
 
@@ -104,6 +132,18 @@ function createFakeIntersectionObserver() {
   return FakeIntersectionObserver;
 }
 
+class FakeTextNode {
+  constructor(text) {
+    this.nodeType = 3;
+    this.textContent = String(text);
+    this.parentNode = null;
+  }
+}
+
+function childText(parent) {
+  return parent.children.map((child) => child.textContent);
+}
+
 class FakeParent {
   constructor(children = []) {
     this.children = [];
@@ -113,17 +153,27 @@ class FakeParent {
   }
 
   appendChild(child) {
+    this.#assertNode(child);
     child.parentNode = this;
     this.children.push(child);
   }
 
   insertBefore(child, reference) {
+    this.#assertNode(child);
     const index = this.children.indexOf(reference);
+    if (index === -1) {
+      throw new Error('reference node is not a child');
+    }
+    child.parentNode = this;
     this.children.splice(index, 0, child);
   }
 
   replaceChild(child, oldChild) {
+    this.#assertNode(child);
     const index = this.children.indexOf(oldChild);
+    if (index === -1) {
+      throw new Error('old child is not a child');
+    }
     child.parentNode = this;
     this.children[index] = child;
     oldChild.parentNode = null;
@@ -133,6 +183,12 @@ class FakeParent {
     const index = this.children.indexOf(child);
     this.children.splice(index, 1);
     child.parentNode = null;
+  }
+
+  #assertNode(child) {
+    if (!(child instanceof FakeElement || child instanceof FakeTextNode)) {
+      throw new TypeError('insertBefore requires a Node');
+    }
   }
 }
 
@@ -145,11 +201,15 @@ class FakeElement {
     this.parentNode = null;
     this.href = '';
     this.text = '';
+    this.children = [];
   }
 
-  insertAdjacentHTML(position, html) {
-    assert.equal(position, 'beforebegin');
-    this.parentNode.insertBefore(html, this);
+  appendChild(child) {
+    if (!(child instanceof FakeElement || child instanceof FakeTextNode)) {
+      throw new TypeError('appendChild requires a Node');
+    }
+    child.parentNode = this;
+    this.children.push(child);
   }
 }
 
@@ -162,10 +222,12 @@ class FakeDocument {
     return new FakeElement(tagName);
   }
 
+  createTextNode(text) {
+    return new FakeTextNode(text);
+  }
+
   querySelectorAll(selector) {
-    return this.root.children.filter(
-      (child) => child instanceof FakeElement && this.matches(child, selector)
-    );
+    return this.#elements(this.root.children).filter((element) => this.matches(element, selector));
   }
 
   matches(element, selector) {
@@ -179,6 +241,18 @@ class FakeDocument {
       return element.id === selector.slice(1);
     }
     return element.tagName.toLowerCase() === selector.toLowerCase();
+  }
+
+  #elements(nodes) {
+    const elements = [];
+    for (const node of nodes) {
+      if (!(node instanceof FakeElement)) {
+        continue;
+      }
+      elements.push(node);
+      elements.push(...this.#elements(node.children));
+    }
+    return elements;
   }
 }
 
@@ -347,8 +421,11 @@ test('FYShuffle.init processes declarative targets immediately', async () => {
     context.document.root.children[0].href,
     'mailto:hello@example.com?subject=Hello%20there'
   );
-  assert.equal(context.document.root.children[1], 'Hidden text');
-  assert.equal(context.document.root.children[2], context.FYForward('visible@example.com', key));
+  assert.equal(context.document.root.children[1].textContent, 'Hidden text');
+  assert.equal(
+    context.document.root.children[2].textContent,
+    context.FYForward('visible@example.com', key)
+  );
 });
 
 test('FYShuffle.init defaults to observing declarative targets', async () => {
@@ -407,6 +484,49 @@ test('FYShuffle.init passes observer options and fallback text through', async (
   assert.equal(observer.options.threshold, 0.5);
 });
 
+test('FYShuffle.observe waits for the configured intersection threshold', async () => {
+  const IntersectionObserver = createFakeIntersectionObserver();
+  const context = await loadBrowserContext({ IntersectionObserver });
+  const key = 123456;
+  const element = new FakeElement('span', {
+    className: 'secret',
+    dataset: { content: context.FYForward('Hidden text', key) },
+  });
+  context.document = new FakeDocument([element]);
+
+  context.FYShuffle.observe({ key, text: 'secret', threshold: 0.5 });
+  const observer = IntersectionObserver.instances[0];
+  observer.trigger([{ target: element, isIntersecting: true, intersectionRatio: 0.49 }]);
+  assert.equal(context.document.root.children[0], element);
+  assert.deepEqual(observer.unobserved, []);
+
+  observer.trigger([{ target: element, isIntersecting: true, intersectionRatio: 0.5 }]);
+  assert.equal(context.document.root.children[0].textContent, 'Hidden text');
+  assert.deepEqual(observer.unobserved, [element]);
+});
+
+test('FYShuffle.init observes until its configured threshold is met', async () => {
+  const IntersectionObserver = createFakeIntersectionObserver();
+  const context = await loadBrowserContext({ IntersectionObserver });
+  const key = 123456;
+  const element = new FakeElement('span', {
+    dataset: {
+      fyshuffle: 'text',
+      key: String(key),
+      content: context.FYForward('Hidden text', key),
+    },
+  });
+  context.document = new FakeDocument([element]);
+
+  context.FYShuffle.init({ threshold: [0, 0.5] });
+  const observer = IntersectionObserver.instances[0];
+  observer.trigger([{ target: element, isIntersecting: true, intersectionRatio: 0.1 }]);
+  assert.equal(context.document.root.children[0], element);
+
+  observer.trigger([{ target: element, isIntersecting: true, intersectionRatio: 0.5 }]);
+  assert.equal(context.document.root.children[0].textContent, 'Hidden text');
+});
+
 test('FYShuffle.init controller can force apply or disconnect observed declarative targets', async () => {
   const IntersectionObserver = createFakeIntersectionObserver();
   const context = await loadBrowserContext({ IntersectionObserver });
@@ -434,7 +554,7 @@ test('FYShuffle.init controller can force apply or disconnect observed declarati
   assert.equal(observer.disconnected, true);
 
   controller.apply();
-  assert.deepEqual(context.document.root.children, ['First', 'Second']);
+  assert.deepEqual(childText(context.document.root), ['First', 'Second']);
   assert.deepEqual(observer.unobserved, [first, second]);
 });
 
@@ -481,8 +601,11 @@ test('FYShuffle.init with keyUrl transforms declarative targets immediately', as
   assert.equal(typeof controller.apply, 'function');
   assert.equal(context.document.root.children[0].tagName, 'A');
   assert.equal(context.document.root.children[0].href, 'mailto:hello@example.com');
-  assert.equal(context.document.root.children[1], 'Hidden text');
-  assert.equal(context.document.root.children[2], context.FYForward('visible@example.com', key));
+  assert.equal(context.document.root.children[1].textContent, 'Hidden text');
+  assert.equal(
+    context.document.root.children[2].textContent,
+    context.FYForward('visible@example.com', key)
+  );
 });
 
 test('FYShuffle.init with keyUrl observes only after the key is fetched', async () => {
@@ -524,7 +647,7 @@ test('FYShuffle.init with keyUrl observes only after the key is fetched', async 
 
   observer.trigger([{ target: element, isIntersecting: true }]);
 
-  assert.deepEqual(context.document.root.children, ['Hidden text']);
+  assert.deepEqual(childText(context.document.root), ['Hidden text']);
   assert.deepEqual(observer.unobserved, [element]);
 });
 
@@ -559,7 +682,7 @@ test('FYShuffle.init data-key overrides fetched key per element', async () => {
     immediate: true,
   });
 
-  assert.deepEqual(context.document.root.children, ['Remote key text', 'Element key text']);
+  assert.deepEqual(childText(context.document.root), ['Remote key text', 'Element key text']);
 });
 
 test('FYShuffle.init with keyUrl rejects invalid remote key responses', async () => {
@@ -649,7 +772,7 @@ test('FYShuffle.init fallback replaces declarative targets when IntersectionObse
 
   context.FYShuffle.init({ fallbackText: 'Contact unavailable' });
 
-  assert.deepEqual(context.document.root.children, ['Contact unavailable']);
+  assert.deepEqual(childText(context.document.root), ['Contact unavailable']);
 });
 
 test('FYShuffle.init fallback prefers per-element fallback text', async () => {
@@ -667,7 +790,7 @@ test('FYShuffle.init fallback prefers per-element fallback text', async () => {
 
   context.FYShuffle.init({ fallbackText: 'Global fallback' });
 
-  assert.deepEqual(context.document.root.children, ['Use the contact form below']);
+  assert.deepEqual(childText(context.document.root), ['Use the contact form below']);
 });
 
 test('FYShuffle.init fallback inserts plain text', async () => {
@@ -685,7 +808,7 @@ test('FYShuffle.init fallback inserts plain text', async () => {
 
   context.FYShuffle.init();
 
-  assert.deepEqual(context.document.root.children, ['<strong>Use the contact form</strong>']);
+  assert.deepEqual(childText(context.document.root), ['<strong>Use the contact form</strong>']);
 });
 
 test('FYShuffle.init rejects invalid declarative markup', async () => {
@@ -818,6 +941,9 @@ test('browser FYForward and FYBackward round-trip representative Unicode text', 
     { text: 'hi', key: 42 },
     { text: 'æøå café', key: 8675309 },
     { text: 'Snowman ☃ and emoji 😀', key: 998877 },
+    { text: '\uFEFF', key: 42 },
+    { text: '\uFEFFleading byte-order mark', key: 42 },
+    { text: 'embedded \uFEFF byte-order mark', key: 42 },
   ];
 
   for (const { text, key } of cases) {
@@ -853,6 +979,30 @@ test('browser FYBackward decodes legacy Latin-1 browser payloads where possible'
   }
 
   assert.equal(context.FYBackward(encoded, key), text);
+});
+
+test('FYShuffle shorthand targets escape class names that are not CSS identifiers', async () => {
+  const selectors = [];
+  const context = await loadBrowserContext({
+    document: {
+      querySelectorAll(selector) {
+        selectors.push(selector);
+        return [];
+      },
+    },
+  });
+
+  context.FYShuffle.apply({ key: 2, text: '123contact' });
+  context.FYShuffle.apply({ key: 2, text: '-1contact' });
+  context.FYShuffle.apply({ key: 2, text: '#already-a-selector' });
+  context.FYShuffle.mtoClass(2);
+
+  assert.deepEqual(selectors, [
+    '.\\31 23contact',
+    '.-\\31 contact',
+    '#already-a-selector',
+    '.\\31 WZhwWa',
+  ]);
 });
 
 test('FYShuffle.observe waits for intersecting mailto targets', async () => {
@@ -902,11 +1052,14 @@ test('FYShuffle.observe transforms text and scramble targets on intersection', a
   const observer = IntersectionObserver.instances[0];
   assert.equal(observer.options.rootMargin, '25px');
   observer.trigger([{ target: text, isIntersecting: true }]);
-  assert.equal(context.document.root.children[0], 'Hidden text');
+  assert.equal(context.document.root.children[0].textContent, 'Hidden text');
   assert.equal(context.document.root.children[1], scramble);
 
   observer.trigger([{ target: scramble, isIntersecting: true }]);
-  assert.equal(context.document.root.children[1], context.FYForward('hello@example.com', key));
+  assert.equal(
+    context.document.root.children[1].textContent,
+    context.FYForward('hello@example.com', key)
+  );
 });
 
 test('FYShuffle.observe controller can disconnect or force apply', async () => {
@@ -930,7 +1083,7 @@ test('FYShuffle.observe controller can disconnect or force apply', async () => {
   assert.equal(observer.disconnected, true);
 
   controller.apply();
-  assert.deepEqual(context.document.root.children, ['First', 'Second']);
+  assert.deepEqual(childText(context.document.root), ['First', 'Second']);
   assert.deepEqual(observer.unobserved, [first, second]);
 });
 
@@ -949,15 +1102,31 @@ test('FYShuffle.observe fallback replaces targets with default text', async () =
 
   const controller = context.FYShuffle.observe({ key, mailto: 'email', text: 'secret' });
 
-  assert.deepEqual(context.document.root.children, [
+  assert.deepEqual(childText(context.document.root), [
     'Protected content unavailable',
     'Protected content unavailable',
   ]);
   controller.apply();
-  assert.deepEqual(context.document.root.children, [
+  assert.deepEqual(childText(context.document.root), [
     'Protected content unavailable',
     'Protected content unavailable',
   ]);
+});
+
+test('FYShuffle-dev.js uses text nodes for observer fallback', async () => {
+  const context = await loadBrowserArtifactContext('FYShuffle-dev.js');
+  const key = 123456;
+  const element = new FakeElement('span', {
+    className: 'secret',
+    dataset: { content: context.FYShuffle.FYForward('Hidden text', key) },
+  });
+  context.document = new FakeDocument([element]);
+
+  context.FYShuffle.observe({ key, text: 'secret', fallbackText: '<strong>Fallback</strong>' });
+
+  assert.equal(context.document.root.children.length, 1);
+  assert.ok(context.document.root.children[0] instanceof FakeTextNode);
+  assert.equal(context.document.root.children[0].textContent, '<strong>Fallback</strong>');
 });
 
 test('FYShuffle.observe fallbackText overrides default fallback', async () => {
@@ -975,7 +1144,7 @@ test('FYShuffle.observe fallbackText overrides default fallback', async () => {
     fallbackText: 'Contact information goes here',
   });
 
-  assert.deepEqual(context.document.root.children, ['Contact information goes here']);
+  assert.deepEqual(childText(context.document.root), ['Contact information goes here']);
 });
 
 test('FYShuffle.observe fallback prefers per-element fallback text', async () => {
@@ -996,7 +1165,7 @@ test('FYShuffle.observe fallback prefers per-element fallback text', async () =>
     fallbackText: 'Global fallback',
   });
 
-  assert.deepEqual(context.document.root.children, ['Use the contact form below']);
+  assert.deepEqual(childText(context.document.root), ['Use the contact form below']);
 });
 
 test('FYShuffle.apply processes mailto targets using simple class names', async () => {
@@ -1018,7 +1187,7 @@ test('FYShuffle.apply processes mailto targets using simple class names', async 
   assert.equal(anchor.tagName, 'A');
   assert.equal(
     anchor.href,
-    'mailto:hello@example.com?cc=cc%40example.com&cc=cc2%40example.com&subject=Hello%20there'
+    'mailto:hello@example.com?cc=cc%40example.com%2Ccc2%40example.com&subject=Hello%20there'
   );
   assert.equal(anchor.text, 'hello@example.com');
 });
@@ -1043,7 +1212,7 @@ test('FYShuffle.apply decodes obfuscated mailto parameters', async () => {
   const anchor = context.document.root.children[0];
   assert.equal(
     anchor.href,
-    'mailto:hello@example.com?cc=cc%40example.com&cc=cc2%40example.com&bcc=bcc%40example.com&subject=Hello%20there&body=Body%20text'
+    'mailto:hello@example.com?cc=cc%40example.com%2Ccc2%40example.com&bcc=bcc%40example.com&subject=Hello%20there&body=Body%20text'
   );
 });
 
@@ -1065,9 +1234,48 @@ test('FYShuffle.apply decodes Unicode mailto content', async () => {
   const anchor = context.document.root.children[0];
   assert.equal(
     anchor.href,
-    'mailto:kontakt+æøå@example.com?subject=M%C3%B8te%20p%C3%A5%20caf%C3%A9%20%E2%98%95&body=Hei%20fra%20Troms%C3%B8%20%F0%9F%98%80'
+    'mailto:kontakt+%C3%A6%C3%B8%C3%A5@example.com?subject=M%C3%B8te%20p%C3%A5%20caf%C3%A9%20%E2%98%95&body=Hei%20fra%20Troms%C3%B8%20%F0%9F%98%80'
   );
   assert.equal(anchor.text, 'kontakt+æøå@example.com');
+});
+
+function assertMailtoParts(anchor, recipient) {
+  const queryIndex = anchor.href.indexOf('?');
+  assert.notEqual(queryIndex, -1);
+  assert.equal(decodeURIComponent(anchor.href.slice('mailto:'.length, queryIndex)), recipient);
+
+  const params = new URLSearchParams(anchor.href.slice(queryIndex + 1));
+  assert.equal(params.get('cc'), 'first@example.com,second@example.com');
+  assert.equal(params.getAll('cc').length, 1);
+  assert.equal(params.get('bcc'), 'third@example.com,fourth@example.com');
+  assert.equal(params.getAll('bcc').length, 1);
+  assert.equal(params.get('subject'), 'Hello');
+  assert.equal(params.get('body'), 'Body');
+}
+
+test('FYShuffle.apply serializes reserved recipient characters and full address headers', async () => {
+  const context = await loadBrowserContext();
+  const key = 123456;
+
+  for (const recipient of ['a?b@example.com', 'a#b@example.com', 'a%20b@example.com']) {
+    const element = new FakeElement('span', {
+      className: 'email',
+      dataset: {
+        content: context.FYForward(recipient, key),
+        cc: 'first@example.com,second@example.com',
+        bcc: 'third@example.com,fourth@example.com',
+        subject: 'Hello',
+        body: 'Body',
+      },
+    });
+    context.document = new FakeDocument([element]);
+
+    context.FYShuffle.apply({ key, mailto: 'email' });
+
+    const anchor = context.document.root.children[0];
+    assert.equal(anchor.text, recipient);
+    assertMailtoParts(anchor, recipient);
+  }
 });
 
 test('FYShuffle.apply decodes compact obfuscated mailto payloads', async () => {
@@ -1093,7 +1301,7 @@ test('FYShuffle.apply decodes compact obfuscated mailto payloads', async () => {
   const anchor = context.document.root.children[0];
   assert.equal(
     anchor.href,
-    'mailto:hello@example.com?cc=cc%40example.com&cc=cc2%40example.com&bcc=bcc%40example.com&subject=Hello%20there&body=Body%20text'
+    'mailto:hello@example.com?cc=cc%40example.com%2Ccc2%40example.com&bcc=bcc%40example.com&subject=Hello%20there&body=Body%20text'
   );
 });
 
@@ -1117,8 +1325,56 @@ test('FYShuffle.apply decodes compact Unicode mailto payloads', async () => {
 
   assert.equal(
     context.document.root.children[0].href,
-    'mailto:kontakt+æøå@example.com?subject=M%C3%B8te%20p%C3%A5%20caf%C3%A9%20%E2%98%95&body=Hei%20fra%20Troms%C3%B8%20%F0%9F%98%80'
+    'mailto:kontakt+%C3%A6%C3%B8%C3%A5@example.com?subject=M%C3%B8te%20p%C3%A5%20caf%C3%A9%20%E2%98%95&body=Hei%20fra%20Troms%C3%B8%20%F0%9F%98%80'
   );
+});
+
+test('FYShuffle.apply serializes reserved compact recipients and full address headers', async () => {
+  const context = await loadBrowserContext();
+  const key = 123456;
+
+  for (const recipient of ['a?b@example.com', 'a#b@example.com', 'a%20b@example.com']) {
+    const payload = {
+      to: recipient,
+      cc: 'first@example.com,second@example.com',
+      bcc: 'third@example.com,fourth@example.com',
+      subject: 'Hello',
+      body: 'Body',
+    };
+    const element = new FakeElement('span', {
+      className: 'email',
+      dataset: { content: context.FYForward(JSON.stringify(payload), key) },
+    });
+    context.document = new FakeDocument([element]);
+
+    context.FYShuffle.apply({ key, mailto: 'email' });
+
+    const anchor = context.document.root.children[0];
+    assert.equal(anchor.text, recipient);
+    assertMailtoParts(anchor, recipient);
+  }
+});
+
+test('FYShuffle-dev.js serializes compact mailto recipients and address headers', async () => {
+  const context = await loadBrowserArtifactContext('FYShuffle-dev.js');
+  const key = 123456;
+  const recipient = 'a?b@example.com';
+  const payload = {
+    to: recipient,
+    cc: 'first@example.com,second@example.com',
+    bcc: 'third@example.com,fourth@example.com',
+    subject: 'Hello',
+    body: 'Body',
+  };
+  const element = new FakeElement('span', {
+    className: 'email',
+    dataset: { content: context.FYShuffle.FYForward(JSON.stringify(payload), key) },
+  });
+  context.document = new FakeDocument([element]);
+
+  context.FYShuffle.apply({ key, mailto: 'email' });
+
+  assertMailtoParts(context.document.root.children[0], recipient);
 });
 
 test('FYShuffle.apply rejects cleartext and obfuscated mailto field conflicts', async () => {
@@ -1197,7 +1453,7 @@ test('FYShuffle.apply processes text targets using explicit selectors', async ()
 
   context.FYShuffle.apply({ key, text: '#secret' });
 
-  assert.deepEqual(context.document.root.children, ['Hidden text']);
+  assert.deepEqual(childText(context.document.root), ['Hidden text']);
 });
 
 test('FYShuffle.apply processes Unicode text targets', async () => {
@@ -1211,7 +1467,24 @@ test('FYShuffle.apply processes Unicode text targets', async () => {
 
   context.FYShuffle.apply({ key, text: '#secret' });
 
-  assert.deepEqual(context.document.root.children, ['Skjult æøå café 😀']);
+  assert.deepEqual(childText(context.document.root), ['Skjult æøå café 😀']);
+});
+
+test('FYShuffle.apply renders decoded text as a text node', async () => {
+  const context = await loadBrowserContext();
+  const key = 42;
+  const decoded = '<img src=x onerror="globalThis.reviewProof=1"> &amp;';
+  const element = new FakeElement('span', {
+    id: 'secret',
+    dataset: { content: context.FYForward(decoded, key) },
+  });
+  context.document = new FakeDocument([element]);
+
+  context.FYShuffle.apply({ key, text: '#secret' });
+
+  assert.equal(context.document.root.children.length, 1);
+  assert.ok(context.document.root.children[0] instanceof FakeTextNode);
+  assert.equal(context.document.root.children[0].textContent, decoded);
 });
 
 test('FYShuffle.apply processes scramble targets', async () => {
@@ -1225,7 +1498,7 @@ test('FYShuffle.apply processes scramble targets', async () => {
 
   context.FYShuffle.apply({ key, scramble: 'encode' });
 
-  assert.deepEqual(context.document.root.children, [context.FYForward('hello@example.com', key)]);
+  assert.deepEqual(childText(context.document.root), [context.FYForward('hello@example.com', key)]);
 });
 
 test('deprecated helpers call through and warn only once per helper', async () => {
@@ -1254,8 +1527,11 @@ test('deprecated helpers call through and warn only once per helper', async () =
 
   assert.equal(context.document.root.children[0].tagName, 'A');
   assert.equal(context.document.root.children[0].href, 'mailto:hello@example.com');
-  assert.equal(context.document.root.children[1], 'Hidden text');
-  assert.equal(context.document.root.children[2], context.FYForward('hello@example.com', key));
+  assert.equal(context.document.root.children[1].textContent, 'Hidden text');
+  assert.equal(
+    context.document.root.children[2].textContent,
+    context.FYForward('hello@example.com', key)
+  );
   assert.equal(
     context.warnings.filter((warning) => warning.startsWith('FYShuffle: mailtoClass()')).length,
     1

@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { createRequire } from 'node:module';
 import test from 'node:test';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 
 const expectedExports = [
   'FYBackward',
@@ -44,6 +48,30 @@ test('ESM bundle exposes the public API', async () => {
   const fyshuffle = await import('../dist/FYShuffle.module.js');
 
   assertPublicExports(fyshuffle);
+});
+
+test('ESM bundle string helpers work without Node Buffer', async () => {
+  const moduleUrl = new URL('../dist/FYShuffle.module.js', import.meta.url).href;
+  const script = [
+    'globalThis.Buffer = undefined;',
+    `const fyshuffle = await import(${JSON.stringify(moduleUrl)});`,
+    "const encoded = fyshuffle.FYForward('æøå café', 123456);",
+    "if (fyshuffle.FYBackward(encoded, 123456) !== 'æøå café') process.exit(1);",
+  ].join('\n');
+
+  await execFileAsync(process.execPath, ['--input-type=module', '--eval', script]);
+});
+
+test('ESM bundle preserves leading byte-order marks like CommonJS', async () => {
+  const esm = await import('../dist/FYShuffle.module.js');
+  const require = createRequire(import.meta.url);
+  const commonjs = require('../dist/FYShuffle.node.cjs');
+
+  for (const input of ['\uFEFF', '\uFEFFhello', 'hello\uFEFFworld']) {
+    const encoded = commonjs.FYForward(input, 42);
+    assert.equal(esm.FYBackward(encoded, 42), input);
+    assert.equal(esm.FYForward(input, 42), encoded);
+  }
 });
 
 test('package import exposes the public API', async () => {
