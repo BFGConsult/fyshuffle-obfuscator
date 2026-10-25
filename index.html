@@ -10,6 +10,12 @@
 
 <body>
   <p>
+    <span class="random-placeholder" data-content="GS5sHllBcyciagtpeSHph2hd3ddydQggppB2InhIGBdhhZWGXyxHGCBvIGCHmBdlIlEGVbda5YIxRNe">
+      You need to enable JavaScript to see this text
+    </span>
+  </p>
+
+  <p>
     Here's my email with all parameters set:
     <span class="aWWh1Zw"
       data-content="GuQ5ZmZasL5JY5nvWWmn"
@@ -34,19 +40,24 @@
   <form id="form">
     <label for="key">Key:</label>
     <input id="key" name="key" type="number" value="0" min="0"><br>
+    <p>
+      URL parameters are <code>encode</code> and <code>key</code>; you can put
+      as many <code>encode</code> values as you like. The <code>key</code>
+      value controls the key used to decode the protected examples; they were
+      encoded with key 0. For example,
+      <code>index.html?key=0&amp;encode=foo&amp;encode=bar</code> provides separate
+      text values for <code>foo</code> and <code>bar</code>.
+    </p>
 
-    <label for="encode">Text:</label>
-    <input id="encode" name="encode" type="text" value=""><br>
+    <div id="encode-fields">
+      <label for="encode-0">Text:</label>
+      <input id="encode-0" name="encode" type="text" value=""><br>
+    </div>
 
     <input type="submit" value="Encode">
   </form>
 
-  <p id="toEncode">
-    <span class="instructions"
-      data-content="Seeve2NbyleIbGY1VZwUbd9NFZYWYyJFVwUSIlBYGStMggUZaG1lIzUX1uI5mWNBiXMGbgkGvFhMXgxgBgWQWGWuGp9m">
-      You need to enable JavaScript to see this text
-    </span>
-  </p>
+  <div id="encoded-results"></div>
 
   <script>
     // Optional developer warning for legacy build
@@ -56,25 +67,49 @@
 
     const searchParams = new URLSearchParams(location.search);
     const toEncode = searchParams.getAll('encode');
-    let key = searchParams.get('key') || 0;
+    const rawKey = searchParams.get('key');
+    const key = rawKey === null ? 0 : Number(rawKey);
+
+    if (!Number.isSafeInteger(key) || key < 0) {
+      document.getElementById("encoded-results").textContent = "Key must be a non-negative integer.";
+      throw new TypeError('FYShuffle demo requires a non-negative integer key');
+    }
 
     document.getElementById("key").value = key;
-    document.getElementById("encode").value = toEncode;
 
-    const p = document.getElementById("toEncode");
+    const encodeFields = document.getElementById('encode-fields');
+    const encodeValues = toEncode.length === 0 ? [''] : toEncode;
+
+    encodeFields.replaceChildren();
+    encodeValues.forEach((value, index) => {
+      const label = document.createElement('label');
+      const input = document.createElement('input');
+      const lineBreak = document.createElement('br');
+
+      input.id = `encode-${index}`;
+      input.name = 'encode';
+      input.type = 'text';
+      input.value = value;
+      label.htmlFor = input.id;
+      label.textContent = 'Text:';
+
+      encodeFields.append(label, input, lineBreak);
+    });
+
+    const results = document.getElementById("encoded-results");
 
     toEncode.forEach(str => {
       const np = document.createElement("p");
       const span = document.createElement("span");
       span.className = 'encode';
       span.dataset['content'] = str;
+      np.appendChild(document.createTextNode(`${str} <=> `));
       np.appendChild(span);
-      span.insertAdjacentHTML('beforebegin', `${str} <=> `);
-      p.parentNode.insertBefore(np, p.nextSibling);
+      results.appendChild(np);
     });
 
     scrambleClass('encode', key);
-    unscrambleClass('instructions', key);
+    unscrambleClass('random-placeholder', key);
     mtoClass(key);
   </script>
 </body>

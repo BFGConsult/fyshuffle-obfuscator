@@ -285,6 +285,8 @@ builds use the next patch after the latest release tag, for example `0.9.3-dev` 
 tag `v0.9.2`. Release builds use the package version without `-dev`; run `npm run build:release`
 only when preparing the final release artifact commit for a matching version tag.
 
+Run `npm run build:dev` to force development artifacts when testing from a release-tagged commit.
+
 The following files will be created in the `dist/` directory:
 
 ```

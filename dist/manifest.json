@@ -1,20 +1,20 @@
 {
   "$schema": "https://example.com/fyshuffle/manifest.schema.json",
   "schemaStatus": "unstable",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "files": {
     "browser": {
       "legacy": "FYShuffle.js",
-      "stable": "FYShuffle.v0.10.0.js",
-      "versioned": "FYShuffle.v0.10.0.js"
+      "stable": "FYShuffle.v0.10.1.js",
+      "versioned": "FYShuffle.v0.10.1.js"
     },
     "node": {
       "legacy": "FYShuffle.node.cjs",
-      "versioned": "FYShuffle.node.v0.10.0.cjs"
+      "versioned": "FYShuffle.node.v0.10.1.cjs"
     },
     "esm": {
       "legacy": "FYShuffle.module.js",
-      "versioned": "FYShuffle.module.v0.10.0.js"
+      "versioned": "FYShuffle.module.v0.10.1.js"
     }
   }
 }

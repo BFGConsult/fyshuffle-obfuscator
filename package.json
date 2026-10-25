@@ -1,11 +1,15 @@
 {
   "name": "fyshuffle-obfuscator",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "type": "module",
   "main": "./dist/FYShuffle.node.cjs",
   "module": "./dist/FYShuffle.module.js",
   "browser": "./dist/FYShuffle.js",
   "types": "./dist/FYShuffle.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BFGConsult/fyshuffle-obfuscator.git"
+  },
   "bin": {
     "fyshuffle": "./bin/fyshuffle.js"
   },
@@ -15,15 +19,16 @@
       "default": "./dist/FYShuffle.module.js"
     },
     "require": {
-      "types": "./dist/FYShuffle.d.ts",
+      "types": "./dist/FYShuffle.d.cts",
       "default": "./dist/FYShuffle.node.cjs"
     }
   },
   "scripts": {
     "test": "node --test",
     "tsgen": "tsc -p tsconfig.build.json",
-    "types": "dts-bundle-generator --project tsconfig.dts.json -o dist/FYShuffle.d.ts ts/FYShuffle.module.d.ts",
+    "types": "dts-bundle-generator --project tsconfig.dts.json -o dist/FYShuffle.d.ts ts/FYShuffle.module.d.ts && node scripts/copy-cjs-declaration.js",
     "build": "node scripts/build.js && npm run tsgen && npm run types",
+    "build:dev": "node scripts/build.js --dev && npm run tsgen && npm run types",
     "build:release": "node scripts/build.js --release && npm run tsgen && npm run types",
     "release:dry-run": "node scripts/release-dry-run.js"
   },
@@ -37,13 +42,14 @@
   },
   "files": [
     "dist/FYShuffle.js",
-    "dist/FYShuffle.v0.10.0.js",
+    "dist/FYShuffle.v0.10.1.js",
     "dist/FYShuffle.min.js",
     "dist/FYShuffle.node.cjs",
-    "dist/FYShuffle.node.v0.10.0.cjs",
+    "dist/FYShuffle.node.v0.10.1.cjs",
     "dist/FYShuffle.module.js",
-    "dist/FYShuffle.module.v0.10.0.js",
+    "dist/FYShuffle.module.v0.10.1.js",
     "dist/FYShuffle.d.ts",
+    "dist/FYShuffle.d.cts",
     "dist/manifest.json",
     "dist/README.md",
     "dist/LICENSE",

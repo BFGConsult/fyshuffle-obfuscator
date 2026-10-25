@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   allowedReleaseTags,
+  assertPublishMetadata,
   assertTagMatchesPackage,
   validatePackOutput,
 } from '../scripts/release-dry-run.js';
@@ -16,6 +17,7 @@ const validReleaseFiles = [
   'README.md',
   'bin/fyshuffle.js',
   'dist/FYShuffle.d.ts',
+  'dist/FYShuffle.d.cts',
   'dist/FYShuffle.js',
   'dist/FYShuffle.min.js',
   'dist/FYShuffle.module.js',
@@ -31,6 +33,18 @@ test('release dry-run accepts prefixed and unprefixed matching tags', () => {
   assert.deepEqual(allowedReleaseTags('0.10.0'), ['0.10.0', 'v0.10.0']);
   assert.equal(assertTagMatchesPackage(['v0.10.0'], '0.10.0'), 'v0.10.0');
   assert.equal(assertTagMatchesPackage(['0.10.0'], '0.10.0'), '0.10.0');
+});
+
+test('release dry-run requires provenance repository metadata', () => {
+  assert.doesNotThrow(() =>
+    assertPublishMetadata({
+      repository: {
+        type: 'git',
+        url: 'git+https://github.com/BFGConsult/fyshuffle-obfuscator.git',
+      },
+    })
+  );
+  assert.throws(() => assertPublishMetadata({}), /package\.json repository must be/);
 });
 
 test('release dry-run rejects missing or mismatched tags', () => {

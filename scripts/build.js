@@ -16,6 +16,7 @@
  *     -h / --help      Show usage information without building
  *     --target=<name>   Build only a specific target (browser, node, esm)
  *     --release         Build package.json version artifacts even before the tag exists
+ *     --dev             Force development artifact names even at a release tag
  *     -v / --verbose    Show stripped import/export lines during build
  *
  * Usage:
@@ -57,7 +58,7 @@ const sources = {
   ],
   esm: [
     'src/fyshuffle-core.js',
-    'src/core/base64.node.js',
+    'src/core/base64.browser.js',
     'src/fyshuffle-crypto.js',
   ],
 };
@@ -83,6 +84,7 @@ const targetArg = args.find((arg) => arg.startsWith('--target='));
 const onlyTarget = targetArg ? targetArg.split('=')[1] : null;
 const isVerbose = args.includes('-v') || args.includes('--verbose');
 const isReleaseOverride = args.includes('--release');
+const isDevOverride = args.includes('--dev');
 
 function printHelp() {
   console.log(`Usage: node scripts/build.js [options]
@@ -93,6 +95,7 @@ Options:
   -h, --help            Show this help and exit without building
       --target=<name>   Build only one target: browser, node, or esm
       --release         Force release artifact names from package.json version
+      --dev             Force development artifact names even at a release tag
   -v, --verbose         Show stripped import/export lines during build
 
 Examples:
@@ -105,6 +108,11 @@ Examples:
 if (isHelp) {
   printHelp();
   process.exit(0);
+}
+
+if (isReleaseOverride && isDevOverride) {
+  console.error('❌ --release and --dev cannot be used together');
+  process.exit(1);
 }
 
 async function getTagsAtHead() {
@@ -133,7 +141,7 @@ const allTags = await getAllTags();
 const buildVersion = resolveBuildVersion({
   packageVersion: pkg.version,
   releaseOverride: isReleaseOverride,
-  tagsAtHead: await getTagsAtHead(),
+  tagsAtHead: isDevOverride ? [] : await getTagsAtHead(),
   allTags,
 });
 const stableBrowserVersion = resolveStableVersion({
@@ -143,9 +151,6 @@ const stableBrowserVersion = resolveStableVersion({
 });
 const isReleaseBuild = buildVersion === pkg.version;
 const browserLegacyFile = isReleaseBuild ? 'FYShuffle.js' : 'FYShuffle-dev.js';
-const staleDevArtifactPattern =
-  /^FYShuffle(?:\.module|\.node)?\.v\d+\.\d+\.\d+-dev\.(?:js|cjs)$/;
-
 function stripModuleSyntax(code, filePath) {
   return code
     .split('\n')
@@ -277,6 +282,7 @@ async function updatePackageJson(version) {
     'dist/FYShuffle.module.js',
     `dist/FYShuffle.module.v${version}.js`,
     'dist/FYShuffle.d.ts',
+    'dist/FYShuffle.d.cts',
     'dist/manifest.json',
     'dist/README.md',
     'dist/LICENSE',
@@ -290,12 +296,60 @@ async function updatePackageJson(version) {
   console.log('📝 Updated package.json files list');
 }
 
-async function removeStaleDevArtifacts() {
+function isStaleDevArtifactForTarget(entry, targetKey) {
+  const patternByTarget = {
+    browser: /^FYShuffle\.v\d+\.\d+\.\d+-dev\.js$/,
+    node: /^FYShuffle\.node\.v\d+\.\d+\.\d+-dev\.cjs$/,
+    esm: /^FYShuffle\.module\.v\d+\.\d+\.\d+-dev\.js$/,
+  };
+  return patternByTarget[targetKey].test(entry);
+}
+
+function versionedArtifactName(targetKey, version) {
+  return targets[targetKey].out.replace(/(\.c?js)$/, `.v${version}$1`);
+}
+
+async function assertPartialBuildPreservesMetadata(targetKeys) {
+  if (targetKeys.length === Object.keys(targets).length) {
+    return;
+  }
+
+  const manifestPath = path.join(distDir, 'manifest.json');
+  let manifest;
+
+  try {
+    manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8'));
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      return;
+    }
+    throw err;
+  }
+
+  const pkgRaw = await fs.readFile(pkgPath, 'utf8');
+  const pkgJson = JSON.parse(pkgRaw);
+
+  for (const targetKey of targetKeys) {
+    const versioned = versionedArtifactName(targetKey, buildVersion);
+    const packagePath = `dist/${versioned}`;
+
+    if (
+      manifest.files[targetKey]?.versioned !== versioned ||
+      !pkgJson.files.includes(packagePath)
+    ) {
+      throw new Error(
+        `Partial ${isReleaseBuild ? 'release' : 'development'} build for ${targetKey} would invalidate existing metadata; run a full build instead.`
+      );
+    }
+  }
+}
+
+async function removeStaleDevArtifacts(targetKeys) {
   try {
     const entries = await fs.readdir(distDir);
     await Promise.all(
       entries
-        .filter((entry) => staleDevArtifactPattern.test(entry))
+        .filter((entry) => targetKeys.some((targetKey) => isStaleDevArtifactForTarget(entry, targetKey)))
         .map(async (entry) => {
           await fs.unlink(path.join(distDir, entry));
           console.log(`🧹 Removed stale dev artifact: ${entry}`);
@@ -309,13 +363,14 @@ async function removeStaleDevArtifacts() {
 }
 
 async function buildAll() {
-  await removeStaleDevArtifacts();
-
   const keysToBuild = onlyTarget
     ? Object.keys(targets).includes(onlyTarget)
       ? [onlyTarget]
       : (console.error(`❌ Unknown target: ${onlyTarget}`), process.exit(1))
     : Object.keys(targets);
+
+  await assertPartialBuildPreservesMetadata(keysToBuild);
+  await removeStaleDevArtifacts(keysToBuild);
 
   const results = await Promise.all(keysToBuild.map(buildTarget));
   const failed = results.filter((r) => !r.success);
@@ -328,8 +383,10 @@ async function buildAll() {
     process.exitCode = 1;
   }
 
-  await generateManifest(buildVersion);
-  await updatePackageJson(buildVersion);
+  if (keysToBuild.length === Object.keys(targets).length) {
+    await generateManifest(buildVersion);
+    await updatePackageJson(buildVersion);
+  }
 }
 
 buildAll();

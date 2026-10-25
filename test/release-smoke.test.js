@@ -40,6 +40,15 @@ test('mailto generator shows inline and explicit fallback snippets', async () =>
   assert.match(html, /id="explicit-output"/);
 });
 
+test('demo treats URL-provided input as text and validates its key', async () => {
+  const html = await readText('index.html');
+
+  assert.match(html, /const key = rawKey === null \? 0 : Number\(rawKey\);/);
+  assert.match(html, /Number\.isSafeInteger\(key\) \|\| key < 0/);
+  assert.match(html, /np\.appendChild\(document\.createTextNode\(`\$\{str\} <=> `\)\);/);
+  assert.doesNotMatch(html, /insertAdjacentHTML/);
+});
+
 test('package and lockfile root versions match', async () => {
   const pkg = JSON.parse(await readText('package.json'));
   const lock = JSON.parse(await readText('package-lock.json'));
@@ -56,11 +65,16 @@ test('package identity is distinct from runtime and CLI names', async () => {
   assert.equal(lock.name, 'fyshuffle-obfuscator');
   assert.equal(lock.packages[''].name, 'fyshuffle-obfuscator');
   assert.deepEqual(pkg.bin, { fyshuffle: './bin/fyshuffle.js' });
+  assert.deepEqual(pkg.repository, {
+    type: 'git',
+    url: 'git+https://github.com/BFGConsult/fyshuffle-obfuscator.git',
+  });
 });
 
 test('package includes release build script', async () => {
   const pkg = JSON.parse(await readText('package.json'));
 
+  assert.equal(pkg.scripts['build:dev'], 'node scripts/build.js --dev && npm run tsgen && npm run types');
   assert.equal(pkg.scripts['build:release'], 'node scripts/build.js --release && npm run tsgen && npm run types');
 });
 
@@ -76,6 +90,7 @@ test('build script help exits without mutating generated files', async () => {
 
   assert.match(stdout, /Usage: node scripts\/build\.js/);
   assert.match(stdout, /--release/);
+  assert.match(stdout, /--dev/);
   assert.match(stdout, /--target=<name>/);
   assert.doesNotMatch(stdout, /Built FYShuffle/);
 
@@ -101,4 +116,6 @@ test('publish workflow contains release verification and trusted publishing step
   assert.match(workflow, /npm pack --dry-run/);
   assert.match(workflow, /npm publish --provenance --access public/);
   assert.match(workflow, /id-token: write/);
+  assert.match(workflow, /node-version: 22\.14\.0/);
+  assert.match(workflow, /npm@11\.5\.1/);
 });

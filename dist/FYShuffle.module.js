@@ -124,20 +124,46 @@ function genPerm(n, key) {
 }
 
 /**
- * Encodes a string to base64 using Buffer (Node.js).
- * @param {string} str - The string to encode.
- * @returns {string}
+ * Encodes a string to base64 using UTF-8 bytes and the browser's `btoa` function.
+ *
+ * @param {string} str - The input string to encode.
+ * @returns {string} - The base64-encoded output.
  */
 function base64Encode(str) {
-  return Buffer.from(str, 'utf8').toString('base64');
+  const bytes = new TextEncoder().encode(str);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return globalThis.btoa(binary);
 }
 /**
- * Decodes a base64-encoded string using Buffer (Node.js).
- * @param {string} b64 - The base64 string to decode.
- * @returns {string}
+ * Decodes a base64-encoded UTF-8 string using the browser's `atob` function.
+ *
+ * @param {string} str - The base64 string to decode.
+ * @returns {string} - The decoded plain string.
  */
-function base64Decode(b64) {
-  return Buffer.from(b64, 'base64').toString('utf8');
+function base64Decode(str) {
+  const padded = padBase64(str);
+  const binary = globalThis.atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  try {
+    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
+      bytes,
+    );
+  } catch {
+    return binary;
+  }
+}
+function padBase64(str) {
+  const missing = str.length % 4;
+  if (missing === 0) {
+    return str;
+  }
+  return str + '='.repeat(4 - missing);
 }
 
 // @ts-ignore: TS2792 - base64.js is resolved during bundle
