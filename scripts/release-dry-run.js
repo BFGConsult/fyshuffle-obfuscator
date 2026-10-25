@@ -28,6 +28,7 @@ export function requiredReleaseFiles(version) {
     'README.md',
     'bin/fyshuffle.js',
     'dist/FYShuffle.d.ts',
+    'dist/FYShuffle.d.cts',
     'dist/FYShuffle.js',
     'dist/FYShuffle.min.js',
     'dist/FYShuffle.module.js',
@@ -38,6 +39,13 @@ export function requiredReleaseFiles(version) {
     'dist/manifest.json',
     'package.json',
   ];
+}
+
+export function assertPublishMetadata(pkg) {
+  const expectedRepository = 'git+https://github.com/BFGConsult/fyshuffle-obfuscator.git';
+  if (!pkg.repository || pkg.repository.type !== 'git' || pkg.repository.url !== expectedRepository) {
+    throw new Error(`package.json repository must be ${expectedRepository}`);
+  }
 }
 
 export function validatePackOutput(output, version) {
@@ -53,9 +61,8 @@ export function validatePackOutput(output, version) {
   }
 }
 
-async function readPackageVersion() {
-  const pkg = JSON.parse(await fs.readFile('package.json', 'utf8'));
-  return pkg.version;
+async function readPackage() {
+  return JSON.parse(await fs.readFile('package.json', 'utf8'));
 }
 
 async function run(command, args, options = {}) {
@@ -84,7 +91,10 @@ async function packDryRun() {
 }
 
 export async function main() {
-  const version = await readPackageVersion();
+  const pkg = await readPackage();
+  const version = pkg.version;
+  assertPublishMetadata(pkg);
+  console.log('✓ package publish metadata is valid');
   const matchingTag = assertTagMatchesPackage(await tagsAtHead(), version);
 
   console.log(`✓ Release tag ${matchingTag} matches package version ${version}`);
