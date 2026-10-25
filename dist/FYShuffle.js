@@ -1,5 +1,5 @@
 console.warn(
-  'FYShuffle: You are using the unversioned FYShuffle.js. For long-term stability, consider switching to a stable versioned file like FYShuffle.v0.10.0.js',
+  'FYShuffle: You are using the unversioned FYShuffle.js. For long-term stability, consider switching to a stable versioned file like FYShuffle.v0.10.1.js',
 );
 
 /* FYShuffle.js — browser (UMD-style) */
@@ -139,7 +139,7 @@ function base64Encode(str) {
   for (let i = 0; i < bytes.length; i++) {
     binary += String.fromCharCode(bytes[i]);
   }
-  return window.btoa(binary);
+  return globalThis.btoa(binary);
 }
 /**
  * Decodes a base64-encoded UTF-8 string using the browser's `atob` function.
@@ -149,13 +149,15 @@ function base64Encode(str) {
  */
 function base64Decode(str) {
   const padded = padBase64(str);
-  const binary = window.atob(padded);
+  const binary = globalThis.atob(padded);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) {
     bytes[i] = binary.charCodeAt(i);
   }
   try {
-    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
+      bytes,
+    );
   } catch {
     return binary;
   }
@@ -220,9 +222,43 @@ function normalizeTarget(target) {
     throw new TypeError('FYShuffle target values must be strings');
   }
   if (/^[A-Za-z0-9_-]+$/.test(target)) {
-    return '.' + target;
+    return '.' + escapeCssIdentifier(target);
   }
   return target;
+}
+function escapeCssIdentifier(value) {
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+    return CSS.escape(value);
+  }
+  let escaped = '';
+  for (let index = 0; index < value.length; index++) {
+    const code = value.charCodeAt(index);
+    const character = value.charAt(index);
+    if (code === 0) {
+      escaped += '\uFFFD';
+    } else if (
+      (code >= 1 && code <= 31) ||
+      code === 127 ||
+      (index === 0 && code >= 48 && code <= 57) ||
+      (index === 1 && code >= 48 && code <= 57 && value.charAt(0) === '-')
+    ) {
+      escaped += `\\${code.toString(16)} `;
+    } else if (index === 0 && code === 45 && value.length === 1) {
+      escaped += '\\-';
+    } else if (
+      code >= 128 ||
+      code === 45 ||
+      code === 95 ||
+      (code >= 48 && code <= 57) ||
+      (code >= 65 && code <= 90) ||
+      (code >= 97 && code <= 122)
+    ) {
+      escaped += character;
+    } else {
+      escaped += `\\${character}`;
+    }
+  }
+  return escaped;
 }
 function selectTarget(target) {
   return document.querySelectorAll(normalizeTarget(target));
@@ -231,11 +267,17 @@ function selectDeclarativeTargets() {
   return document.querySelectorAll('[data-fyshuffle]');
 }
 function replaceWithText(element, text) {
-  element.insertAdjacentHTML('beforebegin', text);
+  element.parentNode.insertBefore(
+    document.createTextNode(String(text)),
+    element,
+  );
   element.parentNode.removeChild(element);
 }
 function replaceWithPlainText(element, text) {
-  element.parentNode.insertBefore(String(text), element);
+  element.parentNode.insertBefore(
+    document.createTextNode(String(text)),
+    element,
+  );
   element.parentNode.removeChild(element);
 }
 const transformByMode = {
@@ -273,13 +315,7 @@ function transformMailtoElement(element, key) {
   for (const field of ['cc', 'bcc', 'subject', 'body']) {
     const value = getMailtoField(field);
     if (value !== undefined) {
-      if (field[field.length - 1] === 'c') {
-        for (const mail of value.split(',')) {
-          fields.push(`${field}=${esc(mail)}`);
-        }
-      } else {
-        fields.push(`${field}=${esc(value)}`);
-      }
+      fields.push(`${field}=${esc(value)}`);
     }
   }
   let query = '';
@@ -289,9 +325,39 @@ function transformMailtoElement(element, key) {
       query += '&' + f;
     }
   }
-  anchor.href = 'mailto:' + target + query;
+  anchor.href = 'mailto:' + encodeMailtoRecipients(target) + query;
   anchor.text = target;
   element.parentNode.replaceChild(anchor, element);
+}
+function encodeMailtoRecipients(recipients) {
+  const addresses = [];
+  let start = 0;
+  let quoted = false;
+  let escaped = false;
+  for (let index = 0; index < recipients.length; index++) {
+    const character = recipients[index];
+    if (escaped) {
+      escaped = false;
+    } else if (character === '\\') {
+      escaped = true;
+    } else if (character === '"') {
+      quoted = !quoted;
+    } else if (character === ',' && !quoted) {
+      addresses.push(recipients.slice(start, index));
+      start = index + 1;
+    }
+  }
+  addresses.push(recipients.slice(start));
+  return addresses
+    .map(function (address) {
+      return encodeURIComponent(address).replace(
+        /%40|%2B/gi,
+        function (encoded) {
+          return decodeURIComponent(encoded);
+        },
+      );
+    })
+    .join(',');
 }
 function parseCompactMailto(value) {
   let payload;
@@ -449,6 +515,11 @@ function observeTargets(targets, config) {
     rootMargin: config.rootMargin || '0px',
     threshold: config.threshold === undefined ? 0 : config.threshold,
   };
+  const requiredThreshold = Array.isArray(config.threshold)
+    ? Math.max(...config.threshold)
+    : config.threshold === undefined
+      ? 0
+      : config.threshold;
   function transformTarget(target, observer) {
     if (!pending.has(target)) {
       return;
@@ -474,7 +545,10 @@ function observeTargets(targets, config) {
   }
   const observer = new IntersectionObserver(function (entries) {
     entries.forEach(function (entry) {
-      if (!entry.isIntersecting) {
+      if (
+        !entry.isIntersecting ||
+        entry.intersectionRatio < requiredThreshold
+      ) {
         return;
       }
       targets.forEach(function (target) {

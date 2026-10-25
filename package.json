@@ -41,12 +41,13 @@
     "undici-types": "^7.11.0"
   },
   "files": [
-    "dist/FYShuffle-dev.js",
-    "dist/FYShuffle.v0.10.1-dev.js",
+    "dist/FYShuffle.js",
+    "dist/FYShuffle.v0.10.1.js",
+    "dist/FYShuffle.min.js",
     "dist/FYShuffle.node.cjs",
-    "dist/FYShuffle.node.v0.10.1-dev.cjs",
+    "dist/FYShuffle.node.v0.10.1.cjs",
     "dist/FYShuffle.module.js",
-    "dist/FYShuffle.module.v0.10.1-dev.js",
+    "dist/FYShuffle.module.v0.10.1.js",
     "dist/FYShuffle.d.ts",
     "dist/FYShuffle.d.cts",
     "dist/manifest.json",
