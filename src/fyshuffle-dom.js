@@ -95,9 +95,39 @@ function transformMailtoElement(element, key) {
         }
     }
 
-    anchor.href = 'mailto:' + target + query;
+    anchor.href = 'mailto:' + encodeMailtoRecipients(target) + query;
     anchor.text = target;
     element.parentNode.replaceChild(anchor, element);
+}
+
+function encodeMailtoRecipients(recipients) {
+    const addresses = [];
+    let start = 0;
+    let quoted = false;
+    let escaped = false;
+
+    for (let index = 0; index < recipients.length; index++) {
+        const character = recipients[index];
+        if (escaped) {
+            escaped = false;
+        } else if (character === '\\') {
+            escaped = true;
+        } else if (character === '"') {
+            quoted = !quoted;
+        } else if (character === ',' && !quoted) {
+            addresses.push(recipients.slice(start, index));
+            start = index + 1;
+        }
+    }
+    addresses.push(recipients.slice(start));
+
+    return addresses
+        .map(function (address) {
+            return encodeURIComponent(address).replace(/%40|%2B/gi, function (encoded) {
+                return decodeURIComponent(encoded);
+            });
+        })
+        .join(',');
 }
 
 function parseCompactMailto(value) {
